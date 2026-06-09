@@ -8,38 +8,50 @@
 <meta name="theme-color" content="#0f1115">
 
 <style>
-body {
+body{
  margin:0;
  background:#0f1115;
  color:#fff;
- font-family:Arial;
+ font-family:Arial,sans-serif;
 }
 
-header {
+header{
  padding:12px;
  text-align:center;
  border-bottom:1px solid #222;
  font-size:15px;
 }
 
-table {
+table{
  width:100%;
  border-collapse:collapse;
  font-size:13px;
 }
 
-th, td {
+th,td{
  padding:9px;
  text-align:center;
  border-bottom:1px solid #222;
 }
 
-small { opacity:0.6; }
+small{
+ opacity:.6;
+}
 
-/* 색상 */
-.green { color:#00ff9d; }
-.red { color:#ff4d4d; }
-.yellow { color:#ffd000; }
+.green{
+ color:#00ff9d;
+ font-weight:bold;
+}
+
+.red{
+ color:#ff4d4d;
+ font-weight:bold;
+}
+
+.yellow{
+ color:#ffd000;
+ font-weight:bold;
+}
 </style>
 </head>
 
@@ -69,35 +81,46 @@ small { opacity:0.6; }
 
 let KRW_RATE = 1300;
 
-// ==========================
-// 코인 리스트
-// ==========================
+// =======================
+// Binance 코인
+// =======================
 const binanceCoins = [
- {symbol:"BTCUSDT", name:"BTC"},
- {symbol:"ETHUSDT", name:"ETH"}
+ {symbol:"BTCUSDT",name:"BTC"},
+ {symbol:"ETHUSDT",name:"ETH"}
 ];
 
+// =======================
+// CoinGecko 코인
+// =======================
 const geckoCoins = [
  "kaspa",
  "sui",
  "bittensor",
+ "ondo-finance",
+ "near",
  "stellar",
  "ripple"
 ];
 
-// ==========================
-// RSI (Wilder 방식)
-// ==========================
+// =======================
+// RSI 계산
+// =======================
 function calcRSI(closes, period=14){
+
  if(closes.length < period + 1) return 50;
 
  let gains = 0;
  let losses = 0;
 
- for(let i = closes.length - period; i < closes.length; i++){
-  let diff = closes[i] - closes[i-1];
-  if(diff > 0) gains += diff;
-  else losses += Math.abs(diff);
+ for(let i=closes.length-period;i<closes.length;i++){
+
+   let diff = closes[i] - closes[i-1];
+
+   if(diff > 0){
+      gains += diff;
+   }else{
+      losses += Math.abs(diff);
+   }
  }
 
  let avgGain = gains / period;
@@ -106,123 +129,175 @@ function calcRSI(closes, period=14){
  if(avgLoss === 0) return 100;
 
  let rs = avgGain / avgLoss;
+
  return 100 - (100 / (1 + rs));
 }
 
-// ==========================
+// =======================
 // 환율
-// ==========================
+// =======================
 async function updateRate(){
- try {
-  const res = await fetch("https://open.er-api.com/v6/latest/USD");
-  const data = await res.json();
-  KRW_RATE = data.rates.KRW || 1300;
- } catch(e){
-  KRW_RATE = 1300;
+
+ try{
+
+   const res = await fetch(
+     "https://open.er-api.com/v6/latest/USD"
+   );
+
+   const data = await res.json();
+
+   KRW_RATE = data.rates.KRW || 1300;
+
+ }catch(e){
+
+   KRW_RATE = 1300;
+
  }
 }
 
-// ==========================
-// Binance (BTC/ETH)
-// ==========================
+// =======================
+// Binance 데이터
+// =======================
 async function getBinance(symbol){
 
- const price = await fetch(`https://api.binance.com/api/v3/ticker/price?symbol=${symbol}`).then(r=>r.json());
- const change = await fetch(`https://api.binance.com/api/v3/ticker/24hr?symbol=${symbol}`).then(r=>r.json());
- const candles = await fetch(`https://api.binance.com/api/v3/klines?symbol=${symbol}&interval=1m&limit=50`).then(r=>r.json());
+ const priceRes =
+ await fetch(
+ `https://api.binance.com/api/v3/ticker/price?symbol=${symbol}`
+ );
 
- const closes = candles.map(c => parseFloat(c[4]));
+ const priceData =
+ await priceRes.json();
 
- return {
-  price: parseFloat(price.price),
-  change: parseFloat(change.priceChangePercent),
-  rsi: calcRSI(closes)
+ const changeRes =
+ await fetch(
+ `https://api.binance.com/api/v3/ticker/24hr?symbol=${symbol}`
+ );
+
+ const changeData =
+ await changeRes.json();
+
+ const candleRes =
+ await fetch(
+ `https://api.binance.com/api/v3/klines?symbol=${symbol}&interval=1m&limit=50`
+ );
+
+ const candles =
+ await candleRes.json();
+
+ const closes =
+ candles.map(c => parseFloat(c[4]));
+
+ return{
+   price:parseFloat(priceData.price),
+   change:parseFloat(changeData.priceChangePercent),
+   rsi:calcRSI(closes)
  };
 }
 
-// ==========================
-// CoinGecko (알트)
-// ==========================
+// =======================
+// CoinGecko 데이터
+// =======================
 async function getGecko(){
 
- const url = `https://api.coingecko.com/api/v3/coins/markets?vs_currency=usd&ids=${geckoCoins.join(",")}`;
+ const url =
+ `https://api.coingecko.com/api/v3/coins/markets?vs_currency=usd&ids=${geckoCoins.join(",")}`;
+
  const res = await fetch(url);
+
  return await res.json();
 }
 
-// ==========================
+// =======================
 // 메인 로딩
-// ==========================
+// =======================
 async function load(){
 
  let html = "";
 
- // 🔵 BTC / ETH (REAL RSI)
- for(let c of binanceCoins){
+ // BTC / ETH
+ for(const coin of binanceCoins){
 
-  const d = await getBinance(c.symbol);
+   const d =
+   await getBinance(coin.symbol);
 
-  const krw = (d.price * KRW_RATE).toLocaleString();
+   const krw =
+   (d.price * KRW_RATE)
+   .toLocaleString();
 
-  const rsiColor =
-    d.rsi > 70 ? "red" :
-    d.rsi < 30 ? "green" :
-    "yellow";
+   const rsiColor =
+   d.rsi > 70
+   ? "red"
+   : d.rsi < 30
+   ? "green"
+   : "yellow";
 
-  const chColor =
-    d.change > 0 ? "green" :
-    d.change < 0 ? "red" :
-    "yellow";
+   const chColor =
+   d.change > 0
+   ? "green"
+   : d.change < 0
+   ? "red"
+   : "yellow";
 
-  html += `
-  <tr>
-   <td>${c.name}</td>
-   <td>$${d.price.toFixed(2)}</td>
-   <td>₩${krw}</td>
-   <td class="${chColor}">${d.change.toFixed(2)}%</td>
-   <td class="${rsiColor}">${d.rsi.toFixed(1)}</td>
-  </tr>
-  `;
+   html += `
+   <tr>
+     <td>${coin.name}</td>
+     <td>$${d.price.toFixed(2)}</td>
+     <td>₩${krw}</td>
+     <td class="${chColor}">
+       ${d.change.toFixed(2)}%
+     </td>
+     <td class="${rsiColor}">
+       ${d.rsi.toFixed(1)}
+     </td>
+   </tr>
+   `;
  }
 
- // 🟢 ALT COINS
- const alts = await getGecko();
+ // 알트코인
+ const alts =
+ await getGecko();
 
- alts.forEach(c => {
+ alts.forEach(c=>{
 
-  const krw = (c.current_price * KRW_RATE).toLocaleString();
+   const krw =
+   (c.current_price * KRW_RATE)
+   .toLocaleString();
 
-  const ch = c.price_change_percentage_24h;
+   const ch =
+   c.price_change_percentage_24h || 0;
 
-  const chColor =
-    ch > 0 ? "green" :
-    ch < 0 ? "red" :
-    "yellow";
+   const chColor =
+   ch > 0
+   ? "green"
+   : ch < 0
+   ? "red"
+   : "yellow";
 
-  html += `
-  <tr>
-   <td>${c.symbol.toUpperCase()}</td>
-   <td>$${c.current_price.toFixed(4)}</td>
-   <td>₩${krw}</td>
-   <td class="${chColor}">
-    ${ch ? ch.toFixed(2) : "0.00"}%
-   </td>
-   <td class="yellow">--</td>
-  </tr>
-  `;
+   html += `
+   <tr>
+     <td>${c.symbol.toUpperCase()}</td>
+     <td>$${c.current_price.toFixed(4)}</td>
+     <td>₩${krw}</td>
+     <td class="${chColor}">
+       ${ch.toFixed(2)}%
+     </td>
+     <td class="yellow">--</td>
+   </tr>
+   `;
  });
 
- document.getElementById("table").innerHTML = html;
+ document.getElementById("table").innerHTML =
+ html;
 }
 
-// ==========================
-// 실행
-// ==========================
+// =======================
+// 시작
+// =======================
 updateRate();
 load();
 
-setInterval(load, 30000);
-setInterval(updateRate, 60000);
+setInterval(load,30000);
+setInterval(updateRate,60000);
 
 </script>
 
