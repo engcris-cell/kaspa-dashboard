@@ -40,6 +40,19 @@ small { opacity:0.6; }
 .green { color:#00ff9d; }
 .red { color:#ff4d4d; }
 .yellow { color:#ffd000; }
+
+#usdtPremiumBox{
+ margin:15px;
+ padding:14px;
+ border:1px solid #333;
+ border-radius:10px;
+ background:#151922;
+ text-align:center;
+ font-size:15px;
+ line-height:1.8;
+ font-weight:bold;
+}
+
 </style>
 </head>
 
@@ -64,6 +77,11 @@ small { opacity:0.6; }
 
 <tbody id="table"></tbody>
 </table>
+
+<div id="usdtPremiumBox">
+💵 USDT 정보를 불러오는 중...
+</div>
+
 
 <script>
 
@@ -216,14 +234,55 @@ async function load(){
  document.getElementById("table").innerHTML = html;
 }
 
+
+async function updateUSDTPremium(){
+
+ try{
+
+  const upbit = await fetch(
+   "https://api.upbit.com/v1/ticker?markets=KRW-USDT"
+  ).then(r=>r.json());
+
+  const usdtKrw = upbit[0].trade_price;
+  const fx = KRW_RATE;
+
+  const premium = ((usdtKrw - fx) / fx * 100);
+
+  let premiumColor =
+    premium > 0 ? "#00ff9d" :
+    premium < 0 ? "#ff4d4d" :
+    "#ffd000";
+
+  document.getElementById("usdtPremiumBox").innerHTML = `
+  💵 USDT : ₩${usdtKrw.toFixed(2)}
+  <br>
+  💲 USD/KRW : ₩${fx.toFixed(2)}
+  <br>
+  <span style="color:${premiumColor}">
+  🇰🇷 김치프리미엄 :
+  ${premium > 0 ? "+" : ""}${premium.toFixed(2)}%
+  </span>
+  `;
+
+ }catch(e){
+
+  document.getElementById("usdtPremiumBox").innerHTML =
+  "USDT 정보를 불러올 수 없습니다.";
+
+ }
+}
+
+
 // ==========================
 // 실행
 // ==========================
 updateRate();
 load();
+updateUSDTPremium();
 
 setInterval(load, 30000);
 setInterval(updateRate, 60000);
+setInterval(updateUSDTPremium, 10000);
 
 </script>
 
