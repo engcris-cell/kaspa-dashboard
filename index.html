@@ -9,48 +9,67 @@
 
 <style>
 body{
- margin:0;
- background:#0f1115;
- color:#fff;
- font-family:Arial,sans-serif;
+    margin:0;
+    background:#0f1115;
+    color:#fff;
+    font-family:Arial,sans-serif;
 }
 
 header{
- padding:12px;
- text-align:center;
- border-bottom:1px solid #222;
- font-size:15px;
+    padding:12px;
+    text-align:center;
+    border-bottom:1px solid #222;
+    font-size:15px;
+}
+
+#toccataBox{
+    padding:12px;
+    text-align:center;
+    background:#151922;
+    border-bottom:1px solid #222;
+}
+
+#toccataTitle{
+    color:#ffd000;
+    font-weight:bold;
+    margin-bottom:5px;
+}
+
+#toccataCountdown{
+    color:#00ff9d;
+    font-size:18px;
+    font-weight:bold;
 }
 
 table{
- width:100%;
- border-collapse:collapse;
- font-size:13px;
+    width:100%;
+    border-collapse:collapse;
+    font-size:13px;
 }
 
 th,td{
- padding:9px;
- text-align:center;
- border-bottom:1px solid #222;
+    padding:9px;
+    text-align:center;
+    border-bottom:1px solid #222;
 }
 
 small{
- opacity:.6;
+    opacity:.6;
 }
 
 .green{
- color:#00ff9d;
- font-weight:bold;
+    color:#00ff9d;
+    font-weight:bold;
 }
 
 .red{
- color:#ff4d4d;
- font-weight:bold;
+    color:#ff4d4d;
+    font-weight:bold;
 }
 
 .yellow{
- color:#ffd000;
- font-weight:bold;
+    color:#ffd000;
+    font-weight:bold;
 }
 </style>
 </head>
@@ -60,8 +79,18 @@ small{
 <header>
 📊 Crypto Ultimate Dashboard
 <br>
-<small>BTC/ETH REAL RSI + Altcoins + FX</small>
+<small>BTC / ETH REAL RSI + Altcoins + FX</small>
 </header>
+
+<div id="toccataBox">
+    <div id="toccataTitle">
+        ⏳ Toccata Hard Fork Countdown
+    </div>
+
+    <div id="toccataCountdown">
+        계산중...
+    </div>
+</div>
 
 <table>
 <thead>
@@ -79,10 +108,13 @@ small{
 
 <script>
 
+// =======================
+// USD/KRW
+// =======================
 let KRW_RATE = 1300;
 
 // =======================
-// Binance 코인
+// Binance
 // =======================
 const binanceCoins = [
  {symbol:"BTCUSDT",name:"BTC"},
@@ -90,7 +122,7 @@ const binanceCoins = [
 ];
 
 // =======================
-// CoinGecko 코인
+// CoinGecko
 // =======================
 const geckoCoins = [
  "kaspa",
@@ -103,7 +135,7 @@ const geckoCoins = [
 ];
 
 // =======================
-// RSI 계산
+// RSI
 // =======================
 function calcRSI(closes, period=14){
 
@@ -134,19 +166,73 @@ function calcRSI(closes, period=14){
 }
 
 // =======================
+// Toccata Countdown
+// =======================
+function updateToccataCountdown(){
+
+ const target =
+ new Date("2026-06-30T00:00:00Z").getTime();
+
+ const now =
+ new Date().getTime();
+
+ const diff =
+ target - now;
+
+ if(diff <= 0){
+
+   document.getElementById(
+   "toccataCountdown"
+   ).innerHTML =
+   "✅ Activated";
+
+   return;
+ }
+
+ const days =
+ Math.floor(diff/(1000*60*60*24));
+
+ const hours =
+ Math.floor(
+ (diff%(1000*60*60*24))
+ /(1000*60*60)
+ );
+
+ const mins =
+ Math.floor(
+ (diff%(1000*60*60))
+ /(1000*60)
+ );
+
+ const secs =
+ Math.floor(
+ (diff%(1000*60))
+ /1000
+ );
+
+ document.getElementById(
+ "toccataCountdown"
+ ).innerHTML =
+ `${days}일 ${hours}시간 ${mins}분 ${secs}초`;
+}
+
+// =======================
 // 환율
 // =======================
 async function updateRate(){
 
  try{
 
-   const res = await fetch(
-     "https://open.er-api.com/v6/latest/USD"
+   const res =
+   await fetch(
+   "https://open.er-api.com/v6/latest/USD"
    );
 
-   const data = await res.json();
+   const data =
+   await res.json();
 
-   KRW_RATE = data.rates.KRW || 1300;
+   KRW_RATE =
+   data.rates.KRW || 1300;
 
  }catch(e){
 
@@ -156,7 +242,7 @@ async function updateRate(){
 }
 
 // =======================
-// Binance 데이터
+// Binance
 // =======================
 async function getBinance(symbol){
 
@@ -195,30 +281,33 @@ async function getBinance(symbol){
 }
 
 // =======================
-// CoinGecko 데이터
+// CoinGecko
 // =======================
 async function getGecko(){
 
  const url =
  `https://api.coingecko.com/api/v3/coins/markets?vs_currency=usd&ids=${geckoCoins.join(",")}`;
 
- const res = await fetch(url);
+ const res =
+ await fetch(url);
 
  return await res.json();
 }
 
 // =======================
-// 메인 로딩
+// Main
 // =======================
 async function load(){
 
  let html = "";
 
- // BTC / ETH
+ // BTC ETH
  for(const coin of binanceCoins){
 
    const d =
-   await getBinance(coin.symbol);
+   await getBinance(
+   coin.symbol
+   );
 
    const krw =
    (d.price * KRW_RATE)
@@ -241,19 +330,28 @@ async function load(){
    html += `
    <tr>
      <td>${coin.name}</td>
-     <td>$${d.price.toFixed(2)}</td>
-     <td>₩${krw}</td>
+
+     <td>
+     $${d.price.toFixed(2)}
+     </td>
+
+     <td>
+     ₩${krw}
+     </td>
+
      <td class="${chColor}">
-       ${d.change.toFixed(2)}%
+     ${d.change.toFixed(2)}%
      </td>
+
      <td class="${rsiColor}">
-       ${d.rsi.toFixed(1)}
+     ${d.rsi.toFixed(1)}
      </td>
+
    </tr>
    `;
  }
 
- // 알트코인
+ // Altcoins
  const alts =
  await getGecko();
 
@@ -275,29 +373,46 @@ async function load(){
 
    html += `
    <tr>
-     <td>${c.symbol.toUpperCase()}</td>
-     <td>$${c.current_price.toFixed(4)}</td>
-     <td>₩${krw}</td>
-     <td class="${chColor}">
-       ${ch.toFixed(2)}%
+
+     <td>
+     ${c.symbol.toUpperCase()}
      </td>
-     <td class="yellow">--</td>
+
+     <td>
+     $${c.current_price.toFixed(4)}
+     </td>
+
+     <td>
+     ₩${krw}
+     </td>
+
+     <td class="${chColor}">
+     ${ch.toFixed(2)}%
+     </td>
+
+     <td class="yellow">
+     --
+     </td>
+
    </tr>
    `;
  });
 
- document.getElementById("table").innerHTML =
- html;
+ document.getElementById(
+ "table"
+ ).innerHTML = html;
 }
 
 // =======================
-// 시작
+// Start
 // =======================
 updateRate();
 load();
+updateToccataCountdown();
 
 setInterval(load,30000);
 setInterval(updateRate,60000);
+setInterval(updateToccataCountdown,1000);
 
 </script>
 
