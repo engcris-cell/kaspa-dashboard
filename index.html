@@ -1,0 +1,167 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+
+<title>Crypto Live BTC ETH RSI</title>
+<meta name="theme-color" content="#0f1115">
+
+<style>
+body {
+ margin:0;
+ background:#0f1115;
+ color:#fff;
+ font-family:Arial;
+}
+
+header {
+ padding:12px;
+ text-align:center;
+ border-bottom:1px solid #222;
+ font-size:15px;
+}
+
+table {
+ width:100%;
+ border-collapse:collapse;
+ font-size:13px;
+}
+
+th, td {
+ padding:9px;
+ text-align:center;
+ border-bottom:1px solid #222;
+}
+
+small { opacity:0.6; }
+
+.green { color:#00ff9d; }
+.red { color:#ff4d4d; }
+.yellow { color:#ffd000; }
+</style>
+</head>
+
+<body>
+
+<header>
+📊 BTC + ETH + Altcoins + USD/KRW + RSI
+<br>
+<small>RSI 30초 / 환율 60초 자동 업데이트</small>
+</header>
+
+<table>
+<thead>
+<tr>
+<th>코인</th>
+<th>USD</th>
+<th>KRW</th>
+<th>RSI</th>
+</tr>
+</thead>
+
+<tbody id="table"></tbody>
+</table>
+
+<script>
+
+const coins = [
+ "bitcoin",
+ "ethereum",
+ "kaspa",
+ "sui",
+ "bittensor",
+ "stellar",
+ "ripple",
+ "canton"
+];
+
+let KRW_RATE = 1500;
+
+// RSI용 히스토리
+let history = {};
+
+// RSI 계산
+function calcRSI(arr){
+ if(arr.length < 2) return 50;
+
+ let gain = 0;
+ let loss = 0;
+
+ for(let i=1;i<arr.length;i++){
+  let diff = arr[i] - arr[i-1];
+  if(diff >= 0) gain += diff;
+  else loss += Math.abs(diff);
+ }
+
+ let avgGain = gain / 14;
+ let avgLoss = loss / 14;
+
+ if(avgLoss === 0) return 100;
+
+ let rs = avgGain / avgLoss;
+ return 100 - (100 / (1 + rs));
+}
+
+// 환율 업데이트
+async function updateRate(){
+ try {
+  const res = await fetch("https://api.exchangerate.host/latest?base=USD&symbols=KRW");
+  const data = await res.json();
+  KRW_RATE = data.rates.KRW;
+ } catch(e){
+  console.log("환율 실패");
+ }
+}
+
+// 코인 데이터
+async function load(){
+
+ const url = `https://api.coingecko.com/api/v3/coins/markets?vs_currency=usd&ids=${coins.join(",")}`;
+ const res = await fetch(url);
+ const data = await res.json();
+
+ let html = "";
+
+ data.forEach(c => {
+
+  if(!history[c.id]) history[c.id] = [];
+  history[c.id].push(c.current_price);
+
+  if(history[c.id].length > 20){
+   history[c.id].shift();
+  }
+
+  let rsi = calcRSI(history[c.id]).toFixed(1);
+
+  let krw = (c.current_price * KRW_RATE).toLocaleString();
+
+  let color =
+    rsi > 70 ? "red" :
+    rsi < 30 ? "green" :
+    "yellow";
+
+  html += `
+  <tr>
+   <td>${c.symbol.toUpperCase()}</td>
+   <td>$${c.current_price.toLocaleString()}</td>
+   <td>₩${krw}</td>
+   <td class="${color}">${rsi}</td>
+  </tr>
+  `;
+ });
+
+ document.getElementById("table").innerHTML = html;
+}
+
+// 실행
+updateRate();
+load();
+
+setInterval(load, 30000);        // RSI + 가격
+setInterval(updateRate, 60000);  // 환율
+
+</script>
+
+</body>
+</html>
