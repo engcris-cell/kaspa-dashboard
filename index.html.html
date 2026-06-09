@@ -1,0 +1,290 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+
+<title>Crypto Ultimate Dashboard</title>
+<meta name="theme-color" content="#0f1115">
+
+<style>
+body {
+ margin:0;
+ background:#0f1115;
+ color:#fff;
+ font-family:Arial;
+}
+
+header {
+ padding:12px;
+ text-align:center;
+ border-bottom:1px solid #222;
+ font-size:15px;
+}
+
+table {
+ width:100%;
+ border-collapse:collapse;
+ font-size:13px;
+}
+
+th, td {
+ padding:9px;
+ text-align:center;
+ border-bottom:1px solid #222;
+}
+
+small { opacity:0.6; }
+
+/* 색상 */
+.green { color:#00ff9d; }
+.red { color:#ff4d4d; }
+.yellow { color:#ffd000; }
+
+#usdtPremiumBox{
+ margin:15px;
+ padding:14px;
+ border:1px solid #333;
+ border-radius:10px;
+ background:#151922;
+ text-align:center;
+ font-size:15px;
+ line-height:1.8;
+ font-weight:bold;
+}
+
+</style>
+</head>
+
+<body>
+
+<header>
+📊 Crypto Ultimate Dashboard
+<br>
+<small>BTC/ETH REAL RSI + Altcoins + FX</small>
+</header>
+
+<table>
+<thead>
+<tr>
+<th>코인</th>
+<th>USD</th>
+<th>KRW</th>
+<th>24h</th>
+<th>RSI</th>
+</tr>
+</thead>
+
+<tbody id="table"></tbody>
+</table>
+
+<div id="usdtPremiumBox">
+💵 USDT 정보를 불러오는 중...
+</div>
+
+
+<script>
+
+let KRW_RATE = 1300;
+
+// ==========================
+// 코인 리스트
+// ==========================
+const binanceCoins = [
+ {symbol:"BTCUSDT", name:"BTC"},
+ {symbol:"ETHUSDT", name:"ETH"}
+];
+
+const geckoCoins = [
+ "kaspa",
+ "sui",
+ "bittensor",
+ "stellar",
+ "ripple",
+ "canton"
+];
+
+// ==========================
+// RSI (Wilder 방식)
+// ==========================
+function calcRSI(closes, period=14){
+ if(closes.length < period + 1) return 50;
+
+ let gains = 0;
+ let losses = 0;
+
+ for(let i = closes.length - period; i < closes.length; i++){
+  let diff = closes[i] - closes[i-1];
+  if(diff > 0) gains += diff;
+  else losses += Math.abs(diff);
+ }
+
+ let avgGain = gains / period;
+ let avgLoss = losses / period;
+
+ if(avgLoss === 0) return 100;
+
+ let rs = avgGain / avgLoss;
+ return 100 - (100 / (1 + rs));
+}
+
+// ==========================
+// 환율
+// ==========================
+async function updateRate(){
+ try {
+  const res = await fetch("https://open.er-api.com/v6/latest/USD");
+  const data = await res.json();
+  KRW_RATE = data.rates.KRW || 1300;
+ } catch(e){
+  KRW_RATE = 1300;
+ }
+}
+
+// ==========================
+// Binance (BTC/ETH)
+// ==========================
+async function getBinance(symbol){
+
+ const price = await fetch(`https://api.binance.com/api/v3/ticker/price?symbol=${symbol}`).then(r=>r.json());
+ const change = await fetch(`https://api.binance.com/api/v3/ticker/24hr?symbol=${symbol}`).then(r=>r.json());
+ const candles = await fetch(`https://api.binance.com/api/v3/klines?symbol=${symbol}&interval=1m&limit=50`).then(r=>r.json());
+
+ const closes = candles.map(c => parseFloat(c[4]));
+
+ return {
+  price: parseFloat(price.price),
+  change: parseFloat(change.priceChangePercent),
+  rsi: calcRSI(closes)
+ };
+}
+
+// ==========================
+// CoinGecko (알트)
+// ==========================
+async function getGecko(){
+
+ const url = `https://api.coingecko.com/api/v3/coins/markets?vs_currency=usd&ids=${geckoCoins.join(",")}`;
+ const res = await fetch(url);
+ return await res.json();
+}
+
+// ==========================
+// 메인 로딩
+// ==========================
+async function load(){
+
+ let html = "";
+
+ // 🔵 BTC / ETH (REAL RSI)
+ for(let c of binanceCoins){
+
+  const d = await getBinance(c.symbol);
+
+  const krw = (d.price * KRW_RATE).toLocaleString();
+
+  const rsiColor =
+    d.rsi > 70 ? "red" :
+    d.rsi < 30 ? "green" :
+    "yellow";
+
+  const chColor =
+    d.change > 0 ? "green" :
+    d.change < 0 ? "red" :
+    "yellow";
+
+  html += `
+  <tr>
+   <td>${c.name}</td>
+   <td>$${d.price.toFixed(2)}</td>
+   <td>₩${krw}</td>
+   <td class="${chColor}">${d.change.toFixed(2)}%</td>
+   <td class="${rsiColor}">${d.rsi.toFixed(1)}</td>
+  </tr>
+  `;
+ }
+
+ // 🟢 ALT COINS
+ const alts = await getGecko();
+
+ alts.forEach(c => {
+
+  const krw = (c.current_price * KRW_RATE).toLocaleString();
+
+  const ch = c.price_change_percentage_24h;
+
+  const chColor =
+    ch > 0 ? "green" :
+    ch < 0 ? "red" :
+    "yellow";
+
+  html += `
+  <tr>
+   <td>${c.symbol.toUpperCase()}</td>
+   <td>$${c.current_price.toFixed(4)}</td>
+   <td>₩${krw}</td>
+   <td class="${chColor}">
+    ${ch ? ch.toFixed(2) : "0.00"}%
+   </td>
+   <td class="yellow">--</td>
+  </tr>
+  `;
+ });
+
+ document.getElementById("table").innerHTML = html;
+}
+
+
+async function updateUSDTPremium(){
+
+ try{
+
+  const upbit = await fetch(
+   "https://api.upbit.com/v1/ticker?markets=KRW-USDT"
+  ).then(r=>r.json());
+
+  const usdtKrw = upbit[0].trade_price;
+  const fx = KRW_RATE;
+
+  const premium = ((usdtKrw - fx) / fx * 100);
+
+  let premiumColor =
+    premium > 0 ? "#00ff9d" :
+    premium < 0 ? "#ff4d4d" :
+    "#ffd000";
+
+  document.getElementById("usdtPremiumBox").innerHTML = `
+  💵 USDT : ₩${usdtKrw.toFixed(2)}
+  <br>
+  💲 USD/KRW : ₩${fx.toFixed(2)}
+  <br>
+  <span style="color:${premiumColor}">
+  🇰🇷 김치프리미엄 :
+  ${premium > 0 ? "+" : ""}${premium.toFixed(2)}%
+  </span>
+  `;
+
+ }catch(e){
+
+  document.getElementById("usdtPremiumBox").innerHTML =
+  "USDT 정보를 불러올 수 없습니다.";
+
+ }
+}
+
+
+// ==========================
+// 실행
+// ==========================
+updateRate();
+load();
+updateUSDTPremium();
+
+setInterval(load, 30000);
+setInterval(updateRate, 60000);
+setInterval(updateUSDTPremium, 10000);
+
+</script>
+
+</body>
+</html>
