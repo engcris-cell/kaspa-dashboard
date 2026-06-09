@@ -58,9 +58,7 @@ th,td{
 .red{ color:#ff4d4d; font-weight:bold; }
 .yellow{ color:#ffd000; font-weight:bold; }
 
-/* ===================== */
-/* KAS BIG CARD */
-/* ===================== */
+/* KAS CARD */
 #kasBigBox{
     margin:12px;
     padding:16px;
@@ -72,21 +70,15 @@ th,td{
     font-weight:bold;
 }
 
-#kasTitle{
-    font-size:14px;
-    opacity:0.8;
-}
-
 #kasPrice{
     font-size:28px;
-    margin-top:8px;
+    margin-top:6px;
 }
 
 #kasChange{
-    margin-top:6px;
     font-size:14px;
+    margin-top:6px;
 }
-
 </style>
 </head>
 
@@ -100,7 +92,7 @@ th,td{
 
 <div id="toccataBox">
     <div id="toccataTitle">
-        🚀 Toccata Mainnet Activation
+        🚀 Toccata Mainnet Activation (KST)
     </div>
 
     <div id="toccataCountdown">계산중...</div>
@@ -116,15 +108,12 @@ th,td{
 <th>RSI</th>
 </tr>
 </thead>
-
 <tbody id="table"></tbody>
 </table>
 
-<!-- ===================== -->
-<!-- 🔥 KAS BIG BOX -->
-<!-- ===================== -->
+<!-- 🔥 KAS BIG CARD -->
 <div id="kasBigBox">
-    <div id="kasTitle">💰 KASPA (Kaspa)</div>
+    <div>💰 KASPA (Kaspa)</div>
     <div id="kasPrice">loading...</div>
     <div id="kasChange"></div>
 </div>
@@ -145,7 +134,7 @@ const binanceCoins = [
 ];
 
 // =======================
-// COINGECKO LIST
+// COINGECKO
 // =======================
 const geckoCoins = [
  "kaspa",
@@ -184,18 +173,16 @@ function calcRSI(closes, period=14){
 }
 
 // =======================
-// TOCCATA COUNTDOWN (KST)
+// TOCCATA (KST FIXED)
 // =======================
 function updateToccataCountdown(){
 
  const target =
  new Date("2026-07-01T01:15:00+09:00").getTime();
 
- const now =
- new Date().getTime();
+ const now = new Date().getTime();
 
- const diff =
- target - now;
+ const diff = target - now;
 
  if(diff <= 0){
    document.getElementById("toccataCountdown").innerHTML =
@@ -203,13 +190,13 @@ function updateToccataCountdown(){
    return;
  }
 
- const days = Math.floor(diff/(1000*60*60*24));
- const hours = Math.floor((diff%(1000*60*60*24))/(1000*60*60));
- const mins = Math.floor((diff%(1000*60*60))/(1000*60));
- const secs = Math.floor((diff%(1000*60))/1000);
+ const d = Math.floor(diff/(1000*60*60*24));
+ const h = Math.floor((diff%(1000*60*60*24))/(1000*60*60));
+ const m = Math.floor((diff%(1000*60*60))/(1000*60));
+ const s = Math.floor((diff%(1000*60))/1000);
 
  document.getElementById("toccataCountdown").innerHTML =
- `D-${days} | ${hours}h ${mins}m ${secs}s`;
+ `D-${d} | ${h}h ${m}m ${s}s`;
 }
 
 // =======================
@@ -226,33 +213,33 @@ async function updateRate(){
 }
 
 // =======================
-// BINANCE DATA
+// BINANCE
 // =======================
 async function getBinance(symbol){
 
- const priceRes =
- await fetch(`https://api.binance.com/api/v3/ticker/price?symbol=${symbol}`);
- const priceData = await priceRes.json();
+ const price = await fetch(
+ `https://api.binance.com/api/v3/ticker/price?symbol=${symbol}`
+ ).then(r=>r.json());
 
- const changeRes =
- await fetch(`https://api.binance.com/api/v3/ticker/24hr?symbol=${symbol}`);
- const changeData = await changeRes.json();
+ const change = await fetch(
+ `https://api.binance.com/api/v3/ticker/24hr?symbol=${symbol}`
+ ).then(r=>r.json());
 
- const candleRes =
- await fetch(`https://api.binance.com/api/v3/klines?symbol=${symbol}&interval=1m&limit=50`);
- const candles = await candleRes.json();
+ const candles = await fetch(
+ `https://api.binance.com/api/v3/klines?symbol=${symbol}&interval=1m&limit=50`
+ ).then(r=>r.json());
 
- const closes = candles.map(c => parseFloat(c[4]));
+ const closes = candles.map(c=>parseFloat(c[4]));
 
  return {
-   price: parseFloat(priceData.price),
-   change: parseFloat(changeData.priceChangePercent),
+   price: parseFloat(price.price),
+   change: parseFloat(change.priceChangePercent),
    rsi: calcRSI(closes)
  };
 }
 
 // =======================
-// COINGECKO
+// COINGECKO TABLE
 // =======================
 async function getGecko(){
 
@@ -299,6 +286,7 @@ async function load(){
  alts.forEach(c=>{
 
    const krw = (c.current_price * KRW_RATE).toLocaleString();
+
    const ch = c.price_change_percentage_24h || 0;
 
    const chColor =
@@ -319,23 +307,25 @@ async function load(){
 }
 
 // =======================
-// 🔥 KAS BIG BOX (separate)
+// 🔥 KAS BIG BOX (FIXED API)
 // =======================
 async function updateKas(){
 
  try{
+
    const res = await fetch(
-   "https://api.coingecko.com/api/v3/simple/price?ids=kaspa&vs_currencies=usd,krw&include_24hr_change=true"
+   "https://api.coingecko.com/api/v3/coins/markets?vs_currency=usd&ids=kaspa"
    );
 
    const data = await res.json();
+   const kas = data[0];
 
-   const price = data.kaspa.usd;
-   const krw = data.kaspa.krw;
-   const change = data.kaspa.usd_24h_change;
+   const price = kas.current_price;
+   const krw = kas.current_price * KRW_RATE;
+   const change = kas.price_change_percentage_24h;
 
    document.getElementById("kasPrice").innerHTML =
-   `$${price} | ₩${krw}`;
+   `$${price} | ₩${krw.toLocaleString()}`;
 
    const color =
    change > 0 ? "green" :
@@ -348,7 +338,7 @@ async function updateKas(){
 
  }catch(e){
    document.getElementById("kasPrice").innerHTML =
-   "KAS 데이터 없음";
+   "KAS 데이터 오류";
  }
 }
 
