@@ -13,6 +13,7 @@ body{
     background:#0f1115;
     color:#fff;
     font-family:Arial,sans-serif;
+    padding-bottom:80px;
 }
 
 header{
@@ -53,24 +54,39 @@ th,td{
     border-bottom:1px solid #222;
 }
 
-small{
-    opacity:.6;
-}
+.green{ color:#00ff9d; font-weight:bold; }
+.red{ color:#ff4d4d; font-weight:bold; }
+.yellow{ color:#ffd000; font-weight:bold; }
 
-.green{
+/* ===================== */
+/* KAS BIG CARD */
+/* ===================== */
+#kasBigBox{
+    margin:12px;
+    padding:16px;
+    text-align:center;
+    background:#121a14;
+    border:1px solid #1f2a22;
+    border-radius:12px;
     color:#00ff9d;
     font-weight:bold;
 }
 
-.red{
-    color:#ff4d4d;
-    font-weight:bold;
+#kasTitle{
+    font-size:14px;
+    opacity:0.8;
 }
 
-.yellow{
-    color:#ffd000;
-    font-weight:bold;
+#kasPrice{
+    font-size:28px;
+    margin-top:8px;
 }
+
+#kasChange{
+    margin-top:6px;
+    font-size:14px;
+}
+
 </style>
 </head>
 
@@ -87,9 +103,7 @@ small{
         🚀 Toccata Mainnet Activation
     </div>
 
-    <div id="toccataCountdown">
-        계산중...
-    </div>
+    <div id="toccataCountdown">계산중...</div>
 </div>
 
 <table>
@@ -106,15 +120,24 @@ small{
 <tbody id="table"></tbody>
 </table>
 
+<!-- ===================== -->
+<!-- 🔥 KAS BIG BOX -->
+<!-- ===================== -->
+<div id="kasBigBox">
+    <div id="kasTitle">💰 KASPA (Kaspa)</div>
+    <div id="kasPrice">loading...</div>
+    <div id="kasChange"></div>
+</div>
+
 <script>
 
 // =======================
-// USD/KRW
+// KRW RATE
 // =======================
 let KRW_RATE = 1300;
 
 // =======================
-// Binance
+// BINANCE
 // =======================
 const binanceCoins = [
  {symbol:"BTCUSDT",name:"BTC"},
@@ -122,7 +145,7 @@ const binanceCoins = [
 ];
 
 // =======================
-// CoinGecko
+// COINGECKO LIST
 // =======================
 const geckoCoins = [
  "kaspa",
@@ -145,14 +168,9 @@ function calcRSI(closes, period=14){
  let losses = 0;
 
  for(let i=closes.length-period;i<closes.length;i++){
-
    let diff = closes[i] - closes[i-1];
-
-   if(diff > 0){
-      gains += diff;
-   }else{
-      losses += Math.abs(diff);
-   }
+   if(diff > 0) gains += diff;
+   else losses += Math.abs(diff);
  }
 
  let avgGain = gains / period;
@@ -166,7 +184,7 @@ function calcRSI(closes, period=14){
 }
 
 // =======================
-// Toccata Countdown
+// TOCCATA COUNTDOWN (KST)
 // =======================
 function updateToccataCountdown(){
 
@@ -180,238 +198,171 @@ function updateToccataCountdown(){
  target - now;
 
  if(diff <= 0){
-
-   document.getElementById(
-   "toccataCountdown"
-   ).innerHTML =
-   "✅ Activated";
-
+   document.getElementById("toccataCountdown").innerHTML =
+   "🚀 TOCCATA LIVE";
    return;
  }
 
- const days =
- Math.floor(diff/(1000*60*60*24));
+ const days = Math.floor(diff/(1000*60*60*24));
+ const hours = Math.floor((diff%(1000*60*60*24))/(1000*60*60));
+ const mins = Math.floor((diff%(1000*60*60))/(1000*60));
+ const secs = Math.floor((diff%(1000*60))/1000);
 
- const hours =
- Math.floor(
- (diff%(1000*60*60*24))
- /(1000*60*60)
- );
-
- const mins =
- Math.floor(
- (diff%(1000*60*60))
- /(1000*60)
- );
-
- const secs =
- Math.floor(
- (diff%(1000*60))
- /1000
- );
-
- document.getElementById(
- "toccataCountdown"
- ).innerHTML =
- `${days}일 ${hours}시간 ${mins}분 ${secs}초`;
+ document.getElementById("toccataCountdown").innerHTML =
+ `D-${days} | ${hours}h ${mins}m ${secs}s`;
 }
 
 // =======================
-// 환율
+// FX RATE
 // =======================
 async function updateRate(){
-
  try{
-
-   const res =
-   await fetch(
-   "https://open.er-api.com/v6/latest/USD"
-   );
-
-   const data =
-   await res.json();
-
-   KRW_RATE =
-   data.rates.KRW || 1300;
-
+   const res = await fetch("https://open.er-api.com/v6/latest/USD");
+   const data = await res.json();
+   KRW_RATE = data.rates.KRW || 1300;
  }catch(e){
-
    KRW_RATE = 1300;
-
  }
 }
 
 // =======================
-// Binance
+// BINANCE DATA
 // =======================
 async function getBinance(symbol){
 
  const priceRes =
- await fetch(
- `https://api.binance.com/api/v3/ticker/price?symbol=${symbol}`
- );
-
- const priceData =
- await priceRes.json();
+ await fetch(`https://api.binance.com/api/v3/ticker/price?symbol=${symbol}`);
+ const priceData = await priceRes.json();
 
  const changeRes =
- await fetch(
- `https://api.binance.com/api/v3/ticker/24hr?symbol=${symbol}`
- );
-
- const changeData =
- await changeRes.json();
+ await fetch(`https://api.binance.com/api/v3/ticker/24hr?symbol=${symbol}`);
+ const changeData = await changeRes.json();
 
  const candleRes =
- await fetch(
- `https://api.binance.com/api/v3/klines?symbol=${symbol}&interval=1m&limit=50`
- );
+ await fetch(`https://api.binance.com/api/v3/klines?symbol=${symbol}&interval=1m&limit=50`);
+ const candles = await candleRes.json();
 
- const candles =
- await candleRes.json();
+ const closes = candles.map(c => parseFloat(c[4]));
 
- const closes =
- candles.map(c => parseFloat(c[4]));
-
- return{
-   price:parseFloat(priceData.price),
-   change:parseFloat(changeData.priceChangePercent),
-   rsi:calcRSI(closes)
+ return {
+   price: parseFloat(priceData.price),
+   change: parseFloat(changeData.priceChangePercent),
+   rsi: calcRSI(closes)
  };
 }
 
 // =======================
-// CoinGecko
+// COINGECKO
 // =======================
 async function getGecko(){
 
  const url =
  `https://api.coingecko.com/api/v3/coins/markets?vs_currency=usd&ids=${geckoCoins.join(",")}`;
 
- const res =
- await fetch(url);
-
+ const res = await fetch(url);
  return await res.json();
 }
 
 // =======================
-// Main
+// MAIN TABLE
 // =======================
 async function load(){
 
  let html = "";
 
- // BTC ETH
  for(const coin of binanceCoins){
 
-   const d =
-   await getBinance(
-   coin.symbol
-   );
+   const d = await getBinance(coin.symbol);
 
-   const krw =
-   (d.price * KRW_RATE)
-   .toLocaleString();
+   const krw = (d.price * KRW_RATE).toLocaleString();
 
    const rsiColor =
-   d.rsi > 70
-   ? "red"
-   : d.rsi < 30
-   ? "green"
-   : "yellow";
+   d.rsi > 70 ? "red" :
+   d.rsi < 30 ? "green" : "yellow";
 
    const chColor =
-   d.change > 0
-   ? "green"
-   : d.change < 0
-   ? "red"
-   : "yellow";
+   d.change > 0 ? "green" :
+   d.change < 0 ? "red" : "yellow";
 
    html += `
    <tr>
      <td>${coin.name}</td>
-
-     <td>
-     $${d.price.toFixed(2)}
-     </td>
-
-     <td>
-     ₩${krw}
-     </td>
-
-     <td class="${chColor}">
-     ${d.change.toFixed(2)}%
-     </td>
-
-     <td class="${rsiColor}">
-     ${d.rsi.toFixed(1)}
-     </td>
-
-   </tr>
-   `;
+     <td>$${d.price.toFixed(2)}</td>
+     <td>₩${krw}</td>
+     <td class="${chColor}">${d.change.toFixed(2)}%</td>
+     <td class="${rsiColor}">${d.rsi.toFixed(1)}</td>
+   </tr>`;
  }
 
- // Altcoins
- const alts =
- await getGecko();
+ const alts = await getGecko();
 
  alts.forEach(c=>{
 
-   const krw =
-   (c.current_price * KRW_RATE)
-   .toLocaleString();
-
-   const ch =
-   c.price_change_percentage_24h || 0;
+   const krw = (c.current_price * KRW_RATE).toLocaleString();
+   const ch = c.price_change_percentage_24h || 0;
 
    const chColor =
-   ch > 0
-   ? "green"
-   : ch < 0
-   ? "red"
-   : "yellow";
+   ch > 0 ? "green" :
+   ch < 0 ? "red" : "yellow";
 
    html += `
    <tr>
-
-     <td>
-     ${c.symbol.toUpperCase()}
-     </td>
-
-     <td>
-     $${c.current_price.toFixed(4)}
-     </td>
-
-     <td>
-     ₩${krw}
-     </td>
-
-     <td class="${chColor}">
-     ${ch.toFixed(2)}%
-     </td>
-
-     <td class="yellow">
-     --
-     </td>
-
-   </tr>
-   `;
+     <td>${c.symbol.toUpperCase()}</td>
+     <td>$${c.current_price.toFixed(4)}</td>
+     <td>₩${krw}</td>
+     <td class="${chColor}">${ch.toFixed(2)}%</td>
+     <td class="yellow">--</td>
+   </tr>`;
  });
 
- document.getElementById(
- "table"
- ).innerHTML = html;
+ document.getElementById("table").innerHTML = html;
 }
 
 // =======================
-// Start
+// 🔥 KAS BIG BOX (separate)
+// =======================
+async function updateKas(){
+
+ try{
+   const res = await fetch(
+   "https://api.coingecko.com/api/v3/simple/price?ids=kaspa&vs_currencies=usd,krw&include_24hr_change=true"
+   );
+
+   const data = await res.json();
+
+   const price = data.kaspa.usd;
+   const krw = data.kaspa.krw;
+   const change = data.kaspa.usd_24h_change;
+
+   document.getElementById("kasPrice").innerHTML =
+   `$${price} | ₩${krw}`;
+
+   const color =
+   change > 0 ? "green" :
+   change < 0 ? "red" : "yellow";
+
+   document.getElementById("kasChange").innerHTML =
+   `<span class="${color}">
+   24h: ${change.toFixed(2)}%
+   </span>`;
+
+ }catch(e){
+   document.getElementById("kasPrice").innerHTML =
+   "KAS 데이터 없음";
+ }
+}
+
+// =======================
+// START
 // =======================
 updateRate();
 load();
+updateKas();
 updateToccataCountdown();
 
 setInterval(load,30000);
 setInterval(updateRate,60000);
+setInterval(updateKas,10000);
 setInterval(updateToccataCountdown,1000);
 
 </script>
