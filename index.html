@@ -4,7 +4,7 @@
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
 
-<title>Crypto REAL RSI</title>
+<title>Crypto Ultimate Dashboard</title>
 <meta name="theme-color" content="#0f1115">
 
 <style>
@@ -34,20 +34,21 @@ th, td {
  border-bottom:1px solid #222;
 }
 
+small { opacity:0.6; }
+
+/* 색상 */
 .green { color:#00ff9d; }
 .red { color:#ff4d4d; }
 .yellow { color:#ffd000; }
-
-small { opacity:0.6; }
 </style>
 </head>
 
 <body>
 
 <header>
-📊 Crypto Live (REAL RSI - 1m Candles)
+📊 Crypto Ultimate Dashboard
 <br>
-<small>BTC / ETH / Alt + RSI (Binance OHLC)</small>
+<small>BTC/ETH REAL RSI + Altcoins + FX</small>
 </header>
 
 <table>
@@ -66,16 +67,27 @@ small { opacity:0.6; }
 
 <script>
 
-// Binance 기반 (RSI 제대로 나오는 구조)
-const coins = [
+let KRW_RATE = 1300;
+
+// ==========================
+// 코인 리스트
+// ==========================
+const binanceCoins = [
  {symbol:"BTCUSDT", name:"BTC"},
  {symbol:"ETHUSDT", name:"ETH"}
 ];
 
-let KRW_RATE = 1300;
+const geckoCoins = [
+ "kaspa",
+ "sui",
+ "bittensor",
+ "stellar",
+ "ripple",
+ "canton"
+];
 
 // ==========================
-// RSI (진짜 Wilder 방식)
+// RSI (Wilder 방식)
 // ==========================
 function calcRSI(closes, period=14){
  if(closes.length < period + 1) return 50;
@@ -83,8 +95,8 @@ function calcRSI(closes, period=14){
  let gains = 0;
  let losses = 0;
 
- for(let i=1;i<=period;i++){
-  let diff = closes[closes.length - i] - closes[closes.length - i - 1];
+ for(let i = closes.length - period; i < closes.length; i++){
+  let diff = closes[i] - closes[i-1];
   if(diff > 0) gains += diff;
   else losses += Math.abs(diff);
  }
@@ -112,41 +124,31 @@ async function updateRate(){
 }
 
 // ==========================
-// Binance 캔들 데이터 (진짜 RSI 핵심)
+// Binance (BTC/ETH)
 // ==========================
-async function getCandles(symbol){
+async function getBinance(symbol){
 
- const url = `https://api.binance.com/api/v3/klines?symbol=${symbol}&interval=1m&limit=50`;
+ const price = await fetch(`https://api.binance.com/api/v3/ticker/price?symbol=${symbol}`).then(r=>r.json());
+ const change = await fetch(`https://api.binance.com/api/v3/ticker/24hr?symbol=${symbol}`).then(r=>r.json());
+ const candles = await fetch(`https://api.binance.com/api/v3/klines?symbol=${symbol}&interval=1m&limit=50`).then(r=>r.json());
 
- const res = await fetch(url);
- const data = await res.json();
+ const closes = candles.map(c => parseFloat(c[4]));
 
- // close price만 추출
- return data.map(c => parseFloat(c[4]));
+ return {
+  price: parseFloat(price.price),
+  change: parseFloat(change.priceChangePercent),
+  rsi: calcRSI(closes)
+ };
 }
 
 // ==========================
-// 현재 가격
+// CoinGecko (알트)
 // ==========================
-async function getPrice(symbol){
+async function getGecko(){
 
- const url = `https://api.binance.com/api/v3/ticker/price?symbol=${symbol}`;
+ const url = `https://api.coingecko.com/api/v3/coins/markets?vs_currency=usd&ids=${geckoCoins.join(",")}`;
  const res = await fetch(url);
- const data = await res.json();
-
- return parseFloat(data.price);
-}
-
-// ==========================
-// 24h change
-// ==========================
-async function get24h(symbol){
-
- const url = `https://api.binance.com/api/v3/ticker/24hr?symbol=${symbol}`;
- const res = await fetch(url);
- const data = await res.json();
-
- return parseFloat(data.priceChangePercent);
+ return await res.json();
 }
 
 // ==========================
@@ -156,34 +158,60 @@ async function load(){
 
  let html = "";
 
- for(let c of coins){
+ // 🔵 BTC / ETH (REAL RSI)
+ for(let c of binanceCoins){
 
-  const price = await getPrice(c.symbol);
-  const change = await get24h(c.symbol);
-  const closes = await getCandles(c.symbol);
+  const d = await getBinance(c.symbol);
 
-  const rsi = calcRSI(closes).toFixed(1);
-
-  const krw = (price * KRW_RATE).toLocaleString();
+  const krw = (d.price * KRW_RATE).toLocaleString();
 
   const rsiColor =
-    rsi > 70 ? "red" :
-    rsi < 30 ? "green" :
+    d.rsi > 70 ? "red" :
+    d.rsi < 30 ? "green" :
     "yellow";
 
   const chColor =
-    change > 0 ? "green" : "red";
+    d.change > 0 ? "green" :
+    d.change < 0 ? "red" :
+    "yellow";
 
   html += `
   <tr>
    <td>${c.name}</td>
-   <td>$${price.toFixed(2)}</td>
+   <td>$${d.price.toFixed(2)}</td>
    <td>₩${krw}</td>
-   <td class="${chColor}">${change.toFixed(2)}%</td>
-   <td class="${rsiColor}">${rsi}</td>
+   <td class="${chColor}">${d.change.toFixed(2)}%</td>
+   <td class="${rsiColor}">${d.rsi.toFixed(1)}</td>
   </tr>
   `;
  }
+
+ // 🟢 ALT COINS
+ const alts = await getGecko();
+
+ alts.forEach(c => {
+
+  const krw = (c.current_price * KRW_RATE).toLocaleString();
+
+  const ch = c.price_change_percentage_24h;
+
+  const chColor =
+    ch > 0 ? "green" :
+    ch < 0 ? "red" :
+    "yellow";
+
+  html += `
+  <tr>
+   <td>${c.symbol.toUpperCase()}</td>
+   <td>$${c.current_price.toFixed(4)}</td>
+   <td>₩${krw}</td>
+   <td class="${chColor}">
+    ${ch ? ch.toFixed(2) : "0.00"}%
+   </td>
+   <td class="yellow">--</td>
+  </tr>
+  `;
+ });
 
  document.getElementById("table").innerHTML = html;
 }
