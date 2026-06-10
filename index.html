@@ -4,7 +4,7 @@
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
 
-<title>Crypto Rank Dashboard</title>
+<title>Crypto Rank Dashboard (CoinGecko Stable)</title>
 
 <style>
 body{
@@ -84,7 +84,7 @@ th,td{
 <body>
 
 <header>
-📊 Crypto Rank Dashboard (24h Ranking)
+📊 Crypto Rank Dashboard (CoinGecko Stable)
 </header>
 
 <div id="toccataBox">
@@ -92,10 +92,8 @@ th,td{
  <div id="toccataCountdown">loading...</div>
 </div>
 
-<!-- BIG BOXES (ranked dynamically) -->
 <div id="boxes"></div>
 
-<!-- TABLE -->
 <table>
 <thead>
 <tr>
@@ -121,11 +119,14 @@ async function rate(){
  }catch(e){}
 }
 
-// ================= FETCH =================
-async function getPaprika(id){
+// ================= COINGECKO SAFE =================
+async function getCoin(id){
  try{
-  const r = await fetch(`https://api.coinpaprika.com/v1/tickers/${id}`);
-  return await r.json();
+  const r = await fetch(
+   `https://api.coingecko.com/api/v3/coins/markets?vs_currency=usd&ids=${id}`
+  );
+  const d = await r.json();
+  return d?.[0] || null;
  }catch(e){
   return null;
  }
@@ -151,38 +152,36 @@ function toccata(){
  `D-${d} | ${h}h ${m}m ${s}s`;
 }
 
-// ================= DATA =================
-async function loadData(){
+// ================= LOAD DATA =================
+async function load(){
 
- const list = [
-  {id:"kas-kaspa", name:"KAS", cls:"kas"},
-  {id:"sui-sui", name:"SUI", cls:"sui"},
-  {id:"canton-network", name:"CC", cls:"cc"}
+ const coins = [
+  {id:"kaspa", name:"KAS", cls:"kas"},
+  {id:"sui", name:"SUI", cls:"sui"},
+  {id:"canton", name:"CC", cls:"cc"}
  ];
 
  let data = [];
 
- for(const c of list){
-  const d = await getPaprika(c.id);
+ for(const c of coins){
+
+  const d = await getCoin(c.id);
 
   if(!d) continue;
 
-  const price = d.quotes.USD.price;
-  const change = d.quotes.USD.percent_change_24h || 0;
-
   data.push({
    name:c.name,
-   class:c.cls,
-   price,
-   change
+   cls:c.cls,
+   price:d.current_price,
+   change:d.price_change_percentage_24h || 0
   });
  }
 
- // ================= RANK SORT (24h) =================
+ // ================= SORT 24h =================
  data.sort((a,b)=>b.change-a.change);
 
- // ================= BIG BOX RENDER =================
- let boxHTML="";
+ // ================= BIG BOX =================
+ let html="";
 
  data.forEach((c,i)=>{
 
@@ -190,8 +189,8 @@ async function loadData(){
    c.change>0 ? "green" :
    c.change<0 ? "red" : "yellow";
 
-  boxHTML+=`
-  <div class="box ${c.class}">
+  html+=`
+  <div class="box ${c.cls}">
    <div class="rank">#${i+1} (24h Rank)</div>
    ${c.name}
    <div class="price">
@@ -204,10 +203,10 @@ async function loadData(){
   </div>`;
  });
 
- document.getElementById("boxes").innerHTML=boxHTML;
+ document.getElementById("boxes").innerHTML=html;
 
  // ================= TABLE =================
- let tableHTML="";
+ let table="";
 
  data.forEach(c=>{
 
@@ -215,7 +214,7 @@ async function loadData(){
    c.change>0 ? "green" :
    c.change<0 ? "red" : "yellow";
 
-  tableHTML+=`
+  table+=`
   <tr>
    <td>${c.name}</td>
    <td>$${c.price.toFixed(6)}</td>
@@ -224,13 +223,13 @@ async function loadData(){
   </tr>`;
  });
 
- document.getElementById("table").innerHTML=tableHTML;
+ document.getElementById("table").innerHTML=table;
 }
 
 // ================= START =================
 async function start(){
  await rate();
- loadData();
+ load();
  toccata();
 }
 
