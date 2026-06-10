@@ -4,7 +4,7 @@
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
 
-<title>Crypto Rank Dashboard (Stable + ZEAL FIXED)</title>
+<title>Crypto Rank Dashboard (Stable)</title>
 
 <style>
 body{
@@ -57,6 +57,7 @@ th,td{
 .red{color:#ff4d4d;font-weight:bold;}
 .yellow{color:#ffd000;font-weight:bold;}
 
+/* BIG BOX */
 .box{
  margin:12px;
  padding:14px;
@@ -70,14 +71,10 @@ th,td{
 .kas{background:#121a14;color:#00ff9d;}
 .sui{background:#10131c;color:#6aa8ff;}
 
-/* ZEAL BOX */
-#zealBox{
- margin:12px;
- padding:14px;
- border-radius:12px;
- background:#0c0f14;
- border:1px solid #222;
- text-align:center;
+.rank{
+ font-size:12px;
+ opacity:0.7;
+ margin-bottom:5px;
 }
 
 </style>
@@ -86,7 +83,7 @@ th,td{
 <body>
 
 <header>
-📊 Crypto Dashboard (KAS / SUI + ZEAL Stable Fixed)
+📊 Crypto Rank Dashboard (KAS / SUI Stable)
 </header>
 
 <div id="toccataBox">
@@ -95,9 +92,6 @@ th,td{
 </div>
 
 <div id="boxes"></div>
-
-<!-- 🔥 ZEAL -->
-<div id="zealBox">ZEAL loading...</div>
 
 <table>
 <thead>
@@ -157,7 +151,7 @@ function toccata(){
  `D-${d} | ${h}h ${m}m ${s}s`;
 }
 
-// ================= MAIN =================
+// ================= LOAD =================
 async function load(){
 
  const coins = [
@@ -181,8 +175,10 @@ async function load(){
   });
  }
 
+ // ================= SORT 24h =================
  data.sort((a,b)=>b.change-a.change);
 
+ // ================= BIG BOX =================
  let html="";
 
  data.forEach((c,i)=>{
@@ -193,7 +189,7 @@ async function load(){
 
   html+=`
   <div class="box ${c.cls}">
-   <div class="rank">#${i+1}</div>
+   <div class="rank">#${i+1} (24h Rank)</div>
    ${c.name}
    <div class="price">
     $${c.price.toFixed(6)}
@@ -207,6 +203,7 @@ async function load(){
 
  document.getElementById("boxes").innerHTML=html;
 
+ // ================= TABLE =================
  let table="";
 
  data.forEach(c=>{
@@ -227,50 +224,17 @@ async function load(){
  document.getElementById("table").innerHTML=table;
 }
 
-// ================= ZEAL (100% FIXED STRUCTURE) =================
-// 👉 여기에 Vercel URL 넣어야 100% 작동
-const ZEAL_API = "https://YOUR-VERCEL.vercel.app/api/zeal";
-
-async function loadZEAL(){
-
- try{
-
-  const r = await fetch(ZEAL_API);
-  const d = await r.json();
-
-  const price = Number(d.price || 0);
-  const change = Number(d.change || 0);
-
-  const color =
-   change > 0 ? "green" :
-   change < 0 ? "red" : "yellow";
-
-  document.getElementById("zealBox").innerHTML = `
-   <b>ZEAL (CoinEx)</b><br>
-   $${price.toFixed(6)}<br>
-   <span class="${color}">
-    ${change.toFixed(2)}%
-   </span>
-  `;
-
- }catch(e){
-  document.getElementById("zealBox").innerHTML =
-   "<span style='color:red'>ZEAL ERROR (proxy 확인 필요)</span>";
- }
-}
-
 // ================= START =================
 async function start(){
  await rate();
  load();
  toccata();
- loadZEAL();
 }
+
+start();
 
 setInterval(start,30000);
 setInterval(toccata,1000);
-
-start();
 
 </script>
 
