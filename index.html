@@ -3,7 +3,8 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
-<title>Crypto Ultimate Dashboard SAFE</title>
+
+<title>Crypto Dashboard (Paprika Stable)</title>
 
 <style>
 body{
@@ -18,6 +19,25 @@ header{
  padding:12px;
  text-align:center;
  border-bottom:1px solid #222;
+ font-size:15px;
+}
+
+#toccataBox{
+ padding:12px;
+ text-align:center;
+ background:#151922;
+ border-bottom:1px solid #222;
+}
+
+#toccataTitle{
+ color:#ffd000;
+ font-weight:bold;
+}
+
+#toccataCountdown{
+ color:#00ff9d;
+ font-size:18px;
+ font-weight:bold;
 }
 
 table{
@@ -36,57 +56,70 @@ th,td{
 .red{color:#ff4d4d;font-weight:bold;}
 .yellow{color:#ffd000;font-weight:bold;}
 
+/* BIG BOX */
 .box{
  margin:12px;
- padding:14px;
- border-radius:12px;
+ padding:16px;
  text-align:center;
+ border-radius:14px;
  font-weight:bold;
 }
+
+.price{font-size:30px;margin-top:8px;}
 
 .kas{background:#121a14;color:#00ff9d;}
 .sui{background:#10131c;color:#6aa8ff;}
 .cc{background:#1a1212;color:#ffb84d;}
 
-.price{font-size:26px;margin-top:6px;}
 </style>
 </head>
 
 <body>
 
 <header>
-📊 SAFE Crypto Dashboard
+📊 Crypto Dashboard (CoinPaprika Stable)
 </header>
 
+<!-- TOCCATA -->
+<div id="toccataBox">
+ <div id="toccataTitle">🚀 Toccata Mainnet (KST)</div>
+ <div id="toccataCountdown">loading...</div>
+</div>
+
+<!-- BIG COINS -->
+<div class="box kas">
+💰 KASPA
+<div id="kas" class="price">loading...</div>
+</div>
+
+<div class="box sui">
+💎 SUI
+<div id="sui" class="price">loading...</div>
+</div>
+
+<div class="box cc">
+🔶 CANTON (CC)
+<div id="cc" class="price">loading...</div>
+</div>
+
+<!-- TABLE -->
 <table>
 <thead>
 <tr>
-<th>COIN</th><th>USD</th><th>KRW</th><th>24h</th>
+<th>COIN</th>
+<th>USD</th>
+<th>KRW</th>
+<th>24h</th>
 </tr>
 </thead>
 <tbody id="table"></tbody>
 </table>
 
-<div class="box kas">
-💰 KAS
-<div id="kas">loading...</div>
-</div>
-
-<div class="box sui">
-💎 SUI
-<div id="sui">loading...</div>
-</div>
-
-<div class="box cc">
-🔶 CC (Canton)
-<div id="cc">loading...</div>
-</div>
-
 <script>
 
 let KRW = 1300;
 
-// ================= KRW RATE =================
+// ================= FX =================
 async function rate(){
  try{
   const r = await fetch("https://open.er-api.com/v6/latest/USD");
@@ -96,20 +129,85 @@ async function rate(){
 }
 
 // ================= SAFE FETCH =================
-async function safe(url){
+async function getPaprika(id){
  try{
-  const r = await fetch(url);
+  const r = await fetch(`https://api.coinpaprika.com/v1/tickers/${id}`);
   return await r.json();
  }catch(e){
   return null;
  }
 }
 
-// ================= TABLE =================
-async function loadTable(){
+// ================= TOCCATA =================
+function toccata(){
+ const target = new Date("2026-07-01T01:15:00+09:00").getTime();
+ const now = Date.now();
+ const diff = target - now;
 
- const btc = await safe("https://api.binance.com/api/v3/ticker/price?symbol=BTCUSDT");
- const eth = await safe("https://api.binance.com/api/v3/ticker/price?symbol=ETHUSDT");
+ if(diff<=0){
+  document.getElementById("toccataCountdown").innerHTML="🚀 LIVE";
+  return;
+ }
+
+ const d=Math.floor(diff/86400000);
+ const h=Math.floor(diff%86400000/3600000);
+ const m=Math.floor(diff%3600000/60000);
+ const s=Math.floor(diff%60000/1000);
+
+ document.getElementById("toccataCountdown").innerHTML=
+ `D-${d} | ${h}h ${m}m ${s}s`;
+}
+
+// ================= KAS =================
+async function kas(){
+ const d = await getPaprika("kas-kaspa");
+
+ if(!d){
+  document.getElementById("kas").innerHTML="no data";
+  return;
+ }
+
+ const p = d.quotes.USD.price;
+
+ document.getElementById("kas").innerHTML =
+ `$${p} | ₩${(p*KRW).toLocaleString()}`;
+}
+
+// ================= SUI =================
+async function sui(){
+ const d = await getPaprika("sui-sui");
+
+ if(!d){
+  document.getElementById("sui").innerHTML="no data";
+  return;
+ }
+
+ const p = d.quotes.USD.price;
+
+ document.getElementById("sui").innerHTML =
+ `$${p} | ₩${(p*KRW).toLocaleString()}`;
+}
+
+// ================= CC =================
+async function cc(){
+ const d = await getPaprika("canton-network");
+
+ if(!d){
+  document.getElementById("cc").innerHTML="no data (CC)";
+  return;
+ }
+
+ const p = d.quotes.USD.price;
+
+ document.getElementById("cc").innerHTML =
+ `$${p} | ₩${(p*KRW).toLocaleString()}`;
+}
+
+// ================= TABLE =================
+async function table(){
+
+ const btc = await fetch("https://api.binance.com/api/v3/ticker/price?symbol=BTCUSDT").then(r=>r.json());
+ const eth = await fetch("https://api.binance.com/api/v3/ticker/price?symbol=ETHUSDT").then(r=>r.json());
 
  let html="";
 
@@ -117,10 +215,10 @@ async function loadTable(){
   const p=+btc.price;
   html+=`
   <tr>
-    <td>BTC</td>
-    <td>$${p.toFixed(2)}</td>
-    <td>₩${(p*KRW).toLocaleString()}</td>
-    <td class="green">live</td>
+   <td>BTC</td>
+   <td>$${p.toFixed(2)}</td>
+   <td>₩${(p*KRW).toLocaleString()}</td>
+   <td class="green">live</td>
   </tr>`;
  }
 
@@ -128,73 +226,30 @@ async function loadTable(){
   const p=+eth.price;
   html+=`
   <tr>
-    <td>ETH</td>
-    <td>$${p.toFixed(2)}</td>
-    <td>₩${(p*KRW).toLocaleString()}</td>
-    <td class="yellow">live</td>
+   <td>ETH</td>
+   <td>$${p.toFixed(2)}</td>
+   <td>₩${(p*KRW).toLocaleString()}</td>
+   <td class="yellow">live</td>
   </tr>`;
  }
 
  document.getElementById("table").innerHTML=html;
 }
 
-// ================= KAS =================
-async function kas(){
- const d = await safe("https://api.coingecko.com/api/v3/simple/price?ids=kaspa&vs_currencies=usd");
-
- if(!d?.kaspa){
-  document.getElementById("kas").innerHTML="no data";
-  return;
- }
-
- const p=d.kaspa.usd;
-
- document.getElementById("kas").innerHTML=
- `$${p} | ₩${(p*KRW).toLocaleString()}`;
-}
-
-// ================= SUI =================
-async function sui(){
- const d = await safe("https://api.coingecko.com/api/v3/simple/price?ids=sui&vs_currencies=usd");
-
- if(!d?.sui){
-  document.getElementById("sui").innerHTML="no data";
-  return;
- }
-
- const p=d.sui.usd;
-
- document.getElementById("sui").innerHTML=
- `$${p} | ₩${(p*KRW).toLocaleString()}`;
-}
-
-// ================= CC (CANTON SAFE) =================
-async function cc(){
- const d = await safe("https://api.coingecko.com/api/v3/simple/price?ids=canton&vs_currencies=usd");
-
- if(!d?.canton){
-  document.getElementById("cc").innerHTML="no data (CC)";
-  return;
- }
-
- const p=d.canton.usd;
-
- document.getElementById("cc").innerHTML=
- `$${p} | ₩${(p*KRW).toLocaleString()}`;
-}
-
 // ================= START =================
 async function start(){
  await rate();
- loadTable();
  kas();
  sui();
  cc();
+ table();
+ toccata();
 }
 
 start();
 
 setInterval(start,30000);
+setInterval(toccata,1000);
 
 </script>
 
