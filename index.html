@@ -3,363 +3,198 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
-
-<title>Crypto Ultimate Dashboard</title>
-<meta name="theme-color" content="#0f1115">
+<title>Crypto Ultimate Dashboard SAFE</title>
 
 <style>
 body{
-    margin:0;
-    background:#0f1115;
-    color:#fff;
-    font-family:Arial,sans-serif;
-    padding-bottom:80px;
+ margin:0;
+ background:#0f1115;
+ color:#fff;
+ font-family:Arial;
+ padding-bottom:80px;
 }
 
 header{
-    padding:12px;
-    text-align:center;
-    border-bottom:1px solid #222;
-    font-size:15px;
-}
-
-#toccataBox{
-    padding:12px;
-    text-align:center;
-    background:#151922;
-    border-bottom:1px solid #222;
-}
-
-#toccataTitle{
-    color:#ffd000;
-    font-weight:bold;
-}
-
-#toccataCountdown{
-    color:#00ff9d;
-    font-size:18px;
-    font-weight:bold;
-    margin-top:5px;
+ padding:12px;
+ text-align:center;
+ border-bottom:1px solid #222;
 }
 
 table{
-    width:100%;
-    border-collapse:collapse;
-    font-size:13px;
+ width:100%;
+ border-collapse:collapse;
+ font-size:13px;
 }
 
 th,td{
-    padding:9px;
-    text-align:center;
-    border-bottom:1px solid #222;
+ padding:8px;
+ text-align:center;
+ border-bottom:1px solid #222;
 }
 
-.green{ color:#00ff9d; font-weight:bold; }
-.red{ color:#ff4d4d; font-weight:bold; }
-.yellow{ color:#ffd000; font-weight:bold; }
+.green{color:#00ff9d;font-weight:bold;}
+.red{color:#ff4d4d;font-weight:bold;}
+.yellow{color:#ffd000;font-weight:bold;}
 
-/* BIG BOX */
-.bigBox{
-    margin:12px;
-    padding:16px;
-    text-align:center;
-    border-radius:12px;
-    font-weight:bold;
+.box{
+ margin:12px;
+ padding:14px;
+ border-radius:12px;
+ text-align:center;
+ font-weight:bold;
 }
 
-#kasBox{
-    background:#121a14;
-    border:1px solid #1f2a22;
-    color:#00ff9d;
-}
+.kas{background:#121a14;color:#00ff9d;}
+.sui{background:#10131c;color:#6aa8ff;}
+.cc{background:#1a1212;color:#ffb84d;}
 
-#suiBox{
-    background:#10131c;
-    border:1px solid #1b2233;
-    color:#6aa8ff;
-}
-
-#ccBox{
-    background:#1a1212;
-    border:1px solid #2a1f1f;
-    color:#ffb84d;
-}
-
-.price{
-    font-size:28px;
-    margin-top:6px;
-}
-
-.change{
-    margin-top:6px;
-    font-size:14px;
-}
+.price{font-size:26px;margin-top:6px;}
 </style>
 </head>
 
 <body>
 
 <header>
-📊 Crypto Ultimate Dashboard<br>
-<small>BTC / ETH / ALT + KAS / SUI / CC LIVE</small>
+📊 SAFE Crypto Dashboard
 </header>
-
-<div id="toccataBox">
-    <div id="toccataTitle">🚀 Toccata Mainnet (KST)</div>
-    <div id="toccataCountdown">loading...</div>
-</div>
 
 <table>
 <thead>
 <tr>
-<th>코인</th>
-<th>USD</th>
-<th>KRW</th>
-<th>24h</th>
-<th>RSI</th>
+<th>COIN</th><th>USD</th><th>KRW</th><th>24h</th>
 </tr>
 </thead>
 <tbody id="table"></tbody>
 </table>
 
-<!-- KAS -->
-<div id="kasBox" class="bigBox">
-    💰 KASPA
-    <div id="kasPrice" class="price">loading...</div>
-    <div id="kasChange" class="change"></div>
+<div class="box kas">
+💰 KAS
+<div id="kas">loading...</div>
 </div>
 
-<!-- SUI -->
-<div id="suiBox" class="bigBox">
-    💎 SUI
-    <div id="suiPrice" class="price">loading...</div>
-    <div id="suiChange" class="change"></div>
+<div class="box sui">
+💎 SUI
+<div id="sui">loading...</div>
 </div>
 
-<!-- CC -->
-<div id="ccBox" class="bigBox">
-    🔶 CANTON NETWORK (CC)
-    <div id="ccPrice" class="price">loading...</div>
-    <div id="ccChange" class="change"></div>
+<div class="box cc">
+🔶 CC (Canton)
+<div id="cc">loading...</div>
 </div>
 
 <script>
 
-let KRW_RATE = 1300;
+let KRW = 1300;
 
-// =======================
-// BINANCE
-// =======================
-const binanceCoins = [
- {symbol:"BTCUSDT",name:"BTC"},
- {symbol:"ETHUSDT",name:"ETH"}
-];
-
-// =======================
-// ALT COINS
-// =======================
-const geckoCoins = [
- "kaspa",
- "sui",
- "bittensor",
- "ondo-finance",
- "near",
- "stellar",
- "ripple"
-];
-
-// =======================
-// RSI
-// =======================
-function calcRSI(closes, period=14){
- if(closes.length < period+1) return 50;
-
- let gain=0, loss=0;
-
- for(let i=closes.length-period;i<closes.length;i++){
-   let diff = closes[i]-closes[i-1];
-   if(diff>0) gain+=diff;
-   else loss+=Math.abs(diff);
- }
-
- let rs = (gain/period)/(loss/period || 1);
- return 100-(100/(1+rs));
-}
-
-// =======================
-// TOCCATA
-// =======================
-function updateToccata(){
- const target = new Date("2026-07-01T01:15:00+09:00").getTime();
- const now = Date.now();
- const diff = target-now;
-
- if(diff<=0){
-   document.getElementById("toccataCountdown").innerHTML="🚀 LIVE";
-   return;
- }
-
- const d=Math.floor(diff/86400000);
- const h=Math.floor(diff%86400000/3600000);
- const m=Math.floor(diff%3600000/60000);
- const s=Math.floor(diff%60000/1000);
-
- document.getElementById("toccataCountdown").innerHTML=
- `D-${d} | ${h}h ${m}m ${s}s`;
-}
-
-// =======================
-// KRW RATE
-// =======================
-async function updateRate(){
+// ================= KRW RATE =================
+async function rate(){
  try{
-   const r = await fetch("https://open.er-api.com/v6/latest/USD");
-   const d = await r.json();
-   KRW_RATE = d.rates.KRW || 1300;
+  const r = await fetch("https://open.er-api.com/v6/latest/USD");
+  const d = await r.json();
+  KRW = d.rates.KRW || 1300;
  }catch(e){}
 }
 
-// =======================
-// BINANCE DATA
-// =======================
-async function getBinance(symbol){
-
- const p = await fetch(`https://api.binance.com/api/v3/ticker/price?symbol=${symbol}`).then(r=>r.json());
- const c = await fetch(`https://api.binance.com/api/v3/ticker/24hr?symbol=${symbol}`).then(r=>r.json());
- const k = await fetch(`https://api.binance.com/api/v3/klines?symbol=${symbol}&interval=1m&limit=50`).then(r=>r.json());
-
- const closes = k.map(x=>+x[4]);
-
- return {
-   price:+p.price,
-   change:+c.priceChangePercent,
-   rsi:calcRSI(closes)
- };
+// ================= SAFE FETCH =================
+async function safe(url){
+ try{
+  const r = await fetch(url);
+  return await r.json();
+ }catch(e){
+  return null;
+ }
 }
 
-// =======================
-// TABLE
-// =======================
-async function load(){
+// ================= TABLE =================
+async function loadTable(){
+
+ const btc = await safe("https://api.binance.com/api/v3/ticker/price?symbol=BTCUSDT");
+ const eth = await safe("https://api.binance.com/api/v3/ticker/price?symbol=ETHUSDT");
 
  let html="";
 
- for(const c of binanceCoins){
-   const d = await getBinance(c.symbol);
-   const krw = (d.price*KRW_RATE).toLocaleString();
-
-   html += `
-   <tr>
-     <td>${c.name}</td>
-     <td>$${d.price.toFixed(2)}</td>
-     <td>₩${krw}</td>
-     <td class="${d.change>0?'green':d.change<0?'red':'yellow'}">${d.change.toFixed(2)}%</td>
-     <td class="${d.rsi>70?'red':d.rsi<30?'green':'yellow'}">${d.rsi.toFixed(1)}</td>
-   </tr>`;
+ if(btc){
+  const p=+btc.price;
+  html+=`
+  <tr>
+    <td>BTC</td>
+    <td>$${p.toFixed(2)}</td>
+    <td>₩${(p*KRW).toLocaleString()}</td>
+    <td class="green">live</td>
+  </tr>`;
  }
 
- const alt = await fetch(
- `https://api.coingecko.com/api/v3/coins/markets?vs_currency=usd&ids=${geckoCoins.join(",")}`
- ).then(r=>r.json());
-
- alt.forEach(c=>{
-   const krw=(c.current_price*KRW_RATE).toLocaleString();
-   const ch=c.price_change_percentage_24h||0;
-
-   html += `
-   <tr>
-     <td>${c.symbol.toUpperCase()}</td>
-     <td>$${c.current_price.toFixed(4)}</td>
-     <td>₩${krw}</td>
-     <td class="${ch>0?'green':ch<0?'red':'yellow'}">${ch.toFixed(2)}%</td>
-     <td>--</td>
-   </tr>`;
- });
+ if(eth){
+  const p=+eth.price;
+  html+=`
+  <tr>
+    <td>ETH</td>
+    <td>$${p.toFixed(2)}</td>
+    <td>₩${(p*KRW).toLocaleString()}</td>
+    <td class="yellow">live</td>
+  </tr>`;
+ }
 
  document.getElementById("table").innerHTML=html;
 }
 
-// =======================
-// KAS
-// =======================
-async function updateKas(){
- try{
-   const r=await fetch("https://api.coingecko.com/api/v3/simple/price?ids=kaspa&vs_currencies=usd,krw&include_24hr_change=true");
-   const d=await r.json();
+// ================= KAS =================
+async function kas(){
+ const d = await safe("https://api.coingecko.com/api/v3/simple/price?ids=kaspa&vs_currencies=usd");
 
-   const k=d.kaspa;
-   document.getElementById("kasPrice").innerHTML=
-   `$${k.usd} | ₩${k.krw.toLocaleString()}`;
-
-   document.getElementById("kasChange").innerHTML=
-   `<span class="${k.usd_24h_change>0?'green':k.usd_24h_change<0?'red':'yellow'}">
-   24h ${k.usd_24h_change.toFixed(2)}%
-   </span>`;
- }catch(e){
-   document.getElementById("kasPrice").innerHTML="KAS error";
+ if(!d?.kaspa){
+  document.getElementById("kas").innerHTML="no data";
+  return;
  }
+
+ const p=d.kaspa.usd;
+
+ document.getElementById("kas").innerHTML=
+ `$${p} | ₩${(p*KRW).toLocaleString()}`;
 }
 
-// =======================
-// SUI
-// =======================
-async function updateSui(){
- try{
-   const r=await fetch("https://api.coingecko.com/api/v3/simple/price?ids=sui&vs_currencies=usd,krw&include_24hr_change=true");
-   const d=await r.json();
+// ================= SUI =================
+async function sui(){
+ const d = await safe("https://api.coingecko.com/api/v3/simple/price?ids=sui&vs_currencies=usd");
 
-   const s=d.sui;
-
-   document.getElementById("suiPrice").innerHTML=
-   `$${s.usd} | ₩${s.krw.toLocaleString()}`;
-
-   document.getElementById("suiChange").innerHTML=
-   `<span class="${s.usd_24h_change>0?'green':s.usd_24h_change<0?'red':'yellow'}">
-   24h ${s.usd_24h_change.toFixed(2)}%
-   </span>`;
- }catch(e){
-   document.getElementById("suiPrice").innerHTML="SUI error";
+ if(!d?.sui){
+  document.getElementById("sui").innerHTML="no data";
+  return;
  }
+
+ const p=d.sui.usd;
+
+ document.getElementById("sui").innerHTML=
+ `$${p} | ₩${(p*KRW).toLocaleString()}`;
 }
 
-// =======================
-// CC (CANTON)
-// =======================
-async function updateCc(){
- try{
-   const r=await fetch("https://api.coingecko.com/api/v3/simple/price?ids=canton&vs_currencies=usd,krw&include_24hr_change=true");
-   const d=await r.json();
+// ================= CC (CANTON SAFE) =================
+async function cc(){
+ const d = await safe("https://api.coingecko.com/api/v3/simple/price?ids=canton&vs_currencies=usd");
 
-   const c=d.canton;
-
-   document.getElementById("ccPrice").innerHTML=
-   `$${c.usd} | ₩${c.krw.toLocaleString()}`;
-
-   document.getElementById("ccChange").innerHTML=
-   `<span class="${c.usd_24h_change>0?'green':c.usd_24h_change<0?'red':'yellow'}">
-   24h ${c.usd_24h_change.toFixed(2)}%
-   </span>`;
- }catch(e){
-   document.getElementById("ccPrice").innerHTML="CC loading...";
+ if(!d?.canton){
+  document.getElementById("cc").innerHTML="no data (CC)";
+  return;
  }
+
+ const p=d.canton.usd;
+
+ document.getElementById("cc").innerHTML=
+ `$${p} | ₩${(p*KRW).toLocaleString()}`;
 }
 
-// =======================
-// START
-// =======================
-updateRate();
-load();
-updateKas();
-updateSui();
-updateCc();
-updateToccata();
+// ================= START =================
+async function start(){
+ await rate();
+ loadTable();
+ kas();
+ sui();
+ cc();
+}
 
-setInterval(load,30000);
-setInterval(updateRate,60000);
-setInterval(updateKas,15000);
-setInterval(updateSui,15000);
-setInterval(updateCc,20000);
-setInterval(updateToccata,1000);
+start();
+
+setInterval(start,30000);
 
 </script>
 
