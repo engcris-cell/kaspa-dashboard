@@ -4,7 +4,7 @@
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
 
-<title>Crypto Rank Dashboard (CoinGecko Stable)</title>
+<title>Crypto Rank Dashboard (Stable)</title>
 
 <style>
 body{
@@ -70,7 +70,6 @@ th,td{
 
 .kas{background:#121a14;color:#00ff9d;}
 .sui{background:#10131c;color:#6aa8ff;}
-.cc{background:#1a1212;color:#ffb84d;}
 
 .rank{
  font-size:12px;
@@ -84,7 +83,7 @@ th,td{
 <body>
 
 <header>
-📊 Crypto Rank Dashboard (CoinGecko Stable)
+📊 Crypto Rank Dashboard (KAS / SUI Stable)
 </header>
 
 <div id="toccataBox">
@@ -119,7 +118,7 @@ async function rate(){
  }catch(e){}
 }
 
-// ================= COINGECKO SAFE =================
+// ================= COINGECKO =================
 async function getCoin(id){
  try{
   const r = await fetch(
@@ -152,13 +151,12 @@ function toccata(){
  `D-${d} | ${h}h ${m}m ${s}s`;
 }
 
-// ================= LOAD DATA =================
+// ================= LOAD =================
 async function load(){
 
  const coins = [
   {id:"kaspa", name:"KAS", cls:"kas"},
-  {id:"sui", name:"SUI", cls:"sui"},
-  {id:"canton", name:"CC", cls:"cc"}
+  {id:"sui", name:"SUI", cls:"sui"}
  ];
 
  let data = [];
