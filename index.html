@@ -4,7 +4,7 @@
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
 
-<title>Crypto Dashboard (Paprika Stable)</title>
+<title>Crypto Rank Dashboard</title>
 
 <style>
 body{
@@ -44,6 +44,7 @@ table{
  width:100%;
  border-collapse:collapse;
  font-size:13px;
+ margin-top:10px;
 }
 
 th,td{
@@ -59,17 +60,23 @@ th,td{
 /* BIG BOX */
 .box{
  margin:12px;
- padding:16px;
- text-align:center;
- border-radius:14px;
+ padding:14px;
+ border-radius:12px;
  font-weight:bold;
+ text-align:center;
 }
 
-.price{font-size:30px;margin-top:8px;}
+.price{font-size:28px;margin-top:6px;}
 
 .kas{background:#121a14;color:#00ff9d;}
 .sui{background:#10131c;color:#6aa8ff;}
 .cc{background:#1a1212;color:#ffb84d;}
+
+.rank{
+ font-size:12px;
+ opacity:0.7;
+ margin-bottom:5px;
+}
 
 </style>
 </head>
@@ -77,37 +84,23 @@ th,td{
 <body>
 
 <header>
-📊 Crypto Dashboard (CoinPaprika Stable)
+📊 Crypto Rank Dashboard (24h Ranking)
 </header>
 
-<!-- TOCCATA -->
 <div id="toccataBox">
  <div id="toccataTitle">🚀 Toccata Mainnet (KST)</div>
  <div id="toccataCountdown">loading...</div>
 </div>
 
-<!-- BIG COINS -->
-<div class="box kas">
-💰 KASPA
-<div id="kas" class="price">loading...</div>
-</div>
-
-<div class="box sui">
-💎 SUI
-<div id="sui" class="price">loading...</div>
-</div>
-
-<div class="box cc">
-🔶 CANTON (CC)
-<div id="cc" class="price">loading...</div>
-</div>
+<!-- BIG BOXES (ranked dynamically) -->
+<div id="boxes"></div>
 
 <!-- TABLE -->
 <table>
 <thead>
 <tr>
 <th>COIN</th>
-<th>USD</th>
+<th>PRICE</th>
 <th>KRW</th>
 <th>24h</th>
 </tr>
@@ -128,7 +121,7 @@ async function rate(){
  }catch(e){}
 }
 
-// ================= SAFE FETCH =================
+// ================= FETCH =================
 async function getPaprika(id){
  try{
   const r = await fetch(`https://api.coinpaprika.com/v1/tickers/${id}`);
@@ -158,91 +151,86 @@ function toccata(){
  `D-${d} | ${h}h ${m}m ${s}s`;
 }
 
-// ================= KAS =================
-async function kas(){
- const d = await getPaprika("kas-kaspa");
+// ================= DATA =================
+async function loadData(){
 
- if(!d){
-  document.getElementById("kas").innerHTML="no data";
-  return;
+ const list = [
+  {id:"kas-kaspa", name:"KAS", cls:"kas"},
+  {id:"sui-sui", name:"SUI", cls:"sui"},
+  {id:"canton-network", name:"CC", cls:"cc"}
+ ];
+
+ let data = [];
+
+ for(const c of list){
+  const d = await getPaprika(c.id);
+
+  if(!d) continue;
+
+  const price = d.quotes.USD.price;
+  const change = d.quotes.USD.percent_change_24h || 0;
+
+  data.push({
+   name:c.name,
+   class:c.cls,
+   price,
+   change
+  });
  }
 
- const p = d.quotes.USD.price;
+ // ================= RANK SORT (24h) =================
+ data.sort((a,b)=>b.change-a.change);
 
- document.getElementById("kas").innerHTML =
- `$${p} | ₩${(p*KRW).toLocaleString()}`;
-}
+ // ================= BIG BOX RENDER =================
+ let boxHTML="";
 
-// ================= SUI =================
-async function sui(){
- const d = await getPaprika("sui-sui");
+ data.forEach((c,i)=>{
 
- if(!d){
-  document.getElementById("sui").innerHTML="no data";
-  return;
- }
+  const color =
+   c.change>0 ? "green" :
+   c.change<0 ? "red" : "yellow";
 
- const p = d.quotes.USD.price;
+  boxHTML+=`
+  <div class="box ${c.class}">
+   <div class="rank">#${i+1} (24h Rank)</div>
+   ${c.name}
+   <div class="price">
+    $${c.price.toFixed(6)}
+    <br>
+    <span class="${color}">
+     ${c.change.toFixed(2)}%
+    </span>
+   </div>
+  </div>`;
+ });
 
- document.getElementById("sui").innerHTML =
- `$${p} | ₩${(p*KRW).toLocaleString()}`;
-}
+ document.getElementById("boxes").innerHTML=boxHTML;
 
-// ================= CC =================
-async function cc(){
- const d = await getPaprika("canton-network");
+ // ================= TABLE =================
+ let tableHTML="";
 
- if(!d){
-  document.getElementById("cc").innerHTML="no data (CC)";
-  return;
- }
+ data.forEach(c=>{
 
- const p = d.quotes.USD.price;
+  const color =
+   c.change>0 ? "green" :
+   c.change<0 ? "red" : "yellow";
 
- document.getElementById("cc").innerHTML =
- `$${p} | ₩${(p*KRW).toLocaleString()}`;
-}
-
-// ================= TABLE =================
-async function table(){
-
- const btc = await fetch("https://api.binance.com/api/v3/ticker/price?symbol=BTCUSDT").then(r=>r.json());
- const eth = await fetch("https://api.binance.com/api/v3/ticker/price?symbol=ETHUSDT").then(r=>r.json());
-
- let html="";
-
- if(btc){
-  const p=+btc.price;
-  html+=`
+  tableHTML+=`
   <tr>
-   <td>BTC</td>
-   <td>$${p.toFixed(2)}</td>
-   <td>₩${(p*KRW).toLocaleString()}</td>
-   <td class="green">live</td>
+   <td>${c.name}</td>
+   <td>$${c.price.toFixed(6)}</td>
+   <td>₩${(c.price*KRW).toLocaleString()}</td>
+   <td class="${color}">${c.change.toFixed(2)}%</td>
   </tr>`;
- }
+ });
 
- if(eth){
-  const p=+eth.price;
-  html+=`
-  <tr>
-   <td>ETH</td>
-   <td>$${p.toFixed(2)}</td>
-   <td>₩${(p*KRW).toLocaleString()}</td>
-   <td class="yellow">live</td>
-  </tr>`;
- }
-
- document.getElementById("table").innerHTML=html;
+ document.getElementById("table").innerHTML=tableHTML;
 }
 
 // ================= START =================
 async function start(){
  await rate();
- kas();
- sui();
- cc();
- table();
+ loadData();
  toccata();
 }
 
