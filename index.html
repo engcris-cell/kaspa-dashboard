@@ -55,6 +55,8 @@ header{
 .eth{background:#12131a;color:#8c8cff;}
 .sol{background:#141a12;color:#7dffb2;}
 .sui{background:#10131c;color:#6aa8ff;}
+.xrp{background:#1a1a12;color:#ffd37a;}
+.tao{background:#121a1a;color:#7affea;}
 
 table{
  width:100%;
@@ -85,7 +87,7 @@ th,td{
 <body>
 
 <header>
-📊 Hybrid Crypto Dashboard (Binance + KAS)
+📊 Hybrid Crypto Dashboard (BTC / ETH / ALT MIX)
 </header>
 
 <div id="toccataBox">
@@ -130,11 +132,11 @@ async function binance(symbol){
  }
 }
 
-// ================= COINGECKO (KAS ONLY) =================
-async function kaspa(){
+// ================= COINGECKO =================
+async function cg(id){
  try{
   const r = await fetch(
-   "https://api.coingecko.com/api/v3/coins/markets?vs_currency=usd&ids=kaspa"
+   `https://api.coingecko.com/api/v3/coins/markets?vs_currency=usd&ids=${id}`
   );
   const d = await r.json();
   return d?.[0] || null;
@@ -169,36 +171,47 @@ let last = {};
 // ================= MAIN =================
 async function load(){
 
- // ===== Binance coins =====
+ // Binance coins
  const b = await Promise.all([
   binance("BTCUSDT"),
   binance("ETHUSDT"),
   binance("SOLUSDT"),
-  binance("SUIUSDT")
+  binance("SUIUSDT"),
+  binance("XRPUSDT")
  ]);
 
- // ===== KAS =====
- const k = await kaspa();
+ // CoinGecko coins
+ const kas = await cg("kaspa");
+ const tao = await cg("bittensor");
 
- // ===== build data =====
  let data = [];
 
+ // Binance push
  if(b[0]) data.push({name:"BTC", price:+b[0].lastPrice, change:+b[0].priceChangePercent, cls:"btc"});
  if(b[1]) data.push({name:"ETH", price:+b[1].lastPrice, change:+b[1].priceChangePercent, cls:"eth"});
  if(b[2]) data.push({name:"SOL", price:+b[2].lastPrice, change:+b[2].priceChangePercent, cls:"sol"});
  if(b[3]) data.push({name:"SUI", price:+b[3].lastPrice, change:+b[3].priceChangePercent, cls:"sui"});
+ if(b[4]) data.push({name:"XRP", price:+b[4].lastPrice, change:+b[4].priceChangePercent, cls:"xrp"});
 
- if(k) data.push({
+ // CoinGecko push
+ if(kas) data.push({
   name:"KAS",
-  price:k.current_price,
-  change:k.price_change_percentage_24h,
+  price:kas.current_price,
+  change:kas.price_change_percentage_24h,
   cls:"kas"
+ });
+
+ if(tao) data.push({
+  name:"TAO",
+  price:tao.current_price,
+  change:tao.price_change_percentage_24h,
+  cls:"tao"
  });
 
  if(data.length>0) last=data;
  data = last;
 
- // ===== BIG BOX (KAS + SUI only) =====
+ // ================= BIG BOX (KAS + SUI only) =================
  const big = data.filter(c=>c.name==="KAS"||c.name==="SUI");
 
  let bigHtml="";
@@ -225,7 +238,7 @@ async function load(){
 
  document.getElementById("boxes").innerHTML=bigHtml;
 
- // ===== TABLE =====
+ // ================= TABLE =================
  let table="";
 
  data.forEach(c=>{
@@ -238,7 +251,7 @@ async function load(){
   <tr>
    <td>${c.name}</td>
    <td>$${c.price}</td>
-   <td>₩${(c.price*KRW).toLocaleString()}</td>
+   <td>₩${(c.price * KRW).toLocaleString()}</td>
    <td class="${color}">${c.change.toFixed(2)}%</td>
   </tr>`;
  });
