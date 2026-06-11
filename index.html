@@ -4,7 +4,7 @@
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
 
-<title>Crypto Stable Dashboard</title>
+<title>Crypto Engine Separated Dashboard</title>
 
 <style>
 body{
@@ -87,7 +87,7 @@ th,td{
 <body>
 
 <header>
-📊 Stable Crypto Dashboard (No Data Loss)
+📊 Engine Separated Crypto Dashboard (Stable Core)
 </header>
 
 <div id="toccataBox">
@@ -122,27 +122,87 @@ async function rate(){
  }catch(e){}
 }
 
-// ================= BINANCE =================
-async function binance(symbol){
+// ================= BINANCE ENGINE =================
+let binanceState = [];
+
+async function binanceEngine(){
+ const symbols = [
+  ["BTCUSDT","BTC","btc"],
+  ["ETHUSDT","ETH","eth"],
+  ["SOLUSDT","SOL","sol"],
+  ["SUIUSDT","SUI","sui"],
+  ["XRPUSDT","XRP","xrp"]
+ ];
+
+ const results = await Promise.all(
+  symbols.map(async ([sym,name,cls])=>{
+   try{
+    const r = await fetch(`https://api.binance.com/api/v3/ticker/24hr?symbol=${sym}`);
+    const d = await r.json();
+    return {
+     name,
+     price:+d.lastPrice,
+     change:+d.priceChangePercent,
+     cls
+    };
+   }catch(e){
+    return null;
+   }
+  })
+ );
+
+ binanceState = results.filter(Boolean);
+}
+
+// ================= KAS ENGINE (INDEPENDENT) =================
+let kasState = {
+ name:"KAS",
+ price:0,
+ change:0,
+ cls:"kas"
+};
+
+async function kasEngine(){
  try{
-  const r = await fetch(`https://api.binance.com/api/v3/ticker/24hr?symbol=${symbol}`);
-  return await r.json();
+  const r = await fetch(
+   "https://api.coingecko.com/api/v3/coins/markets?vs_currency=usd&ids=kaspa"
+  );
+  const d = await r.json();
+
+  if(d?.[0]){
+   kasState = {
+    name:"KAS",
+    price:d[0].current_price,
+    change:d[0].price_change_percentage_24h,
+    cls:"kas"
+   };
+  }
+
  }catch(e){
-  return null;
+  // fallback 유지
  }
 }
 
-// ================= COINGECKO =================
-async function cg(id){
+// ================= TAO ENGINE =================
+let taoState = null;
+
+async function taoEngine(){
  try{
   const r = await fetch(
-   `https://api.coingecko.com/api/v3/coins/markets?vs_currency=usd&ids=${id}`
+   "https://api.coingecko.com/api/v3/coins/markets?vs_currency=usd&ids=bittensor"
   );
   const d = await r.json();
-  return d?.[0] || null;
- }catch(e){
-  return null;
- }
+
+  if(d?.[0]){
+   taoState = {
+    name:"TAO",
+    price:d[0].current_price,
+    change:d[0].price_change_percentage_24h,
+    cls:"tao"
+   };
+  }
+
+ }catch(e){}
 }
 
 // ================= TOCCATA =================
@@ -165,66 +225,16 @@ function toccata(){
  `D-${d} | ${h}h ${m}m ${s}s`;
 }
 
-// ================= SAFE STORAGE =================
-let last = [];
+// ================= RENDER ENGINE =================
+function render(){
 
-// ================= MAIN =================
-async function load(){
+ const data = [
+  ...binanceState,
+  kasState,
+  ...(taoState ? [taoState] : [])
+ ];
 
- // Binance
- const b = await Promise.all([
-  binance("BTCUSDT"),
-  binance("ETHUSDT"),
-  binance("SOLUSDT"),
-  binance("SUIUSDT"),
-  binance("XRPUSDT")
- ]);
-
- // CoinGecko
- const kas = await cg("kaspa");
- const tao = await cg("bittensor");
-
- let data = [];
-
- // ===== Binance push =====
- if(b[0]) data.push({name:"BTC", price:+b[0].lastPrice, change:+b[0].priceChangePercent, cls:"btc"});
- if(b[1]) data.push({name:"ETH", price:+b[1].lastPrice, change:+b[1].priceChangePercent, cls:"eth"});
- if(b[2]) data.push({name:"SOL", price:+b[2].lastPrice, change:+b[2].priceChangePercent, cls:"sol"});
- if(b[3]) data.push({name:"SUI", price:+b[3].lastPrice, change:+b[3].priceChangePercent, cls:"sui"});
- if(b[4]) data.push({name:"XRP", price:+b[4].lastPrice, change:+b[4].priceChangePercent, cls:"xrp"});
-
- // ===== KAS SAFE FALLBACK =====
- let kasSafe = last.find(x => x.name === "KAS");
-
- if(kas){
-  kasSafe = {
-   name:"KAS",
-   price:kas.current_price,
-   change:kas.price_change_percentage_24h,
-   cls:"kas"
-  };
- }
-
- if(kasSafe) data.push(kasSafe);
-
- // ===== TAO SAFE =====
- if(tao){
-  data.push({
-   name:"TAO",
-   price:tao.current_price,
-   change:tao.price_change_percentage_24h,
-   cls:"tao"
-  });
- }
-
- // ===== SAVE LAST SAFE STATE =====
- if(data.length > 0){
-  last = data;
- }
-
- data = last;
-
- // ================= BIG BOX (KAS + SUI) =================
+ // BIG BOX (KAS + SUI)
  const big = data.filter(c=>c.name==="KAS"||c.name==="SUI");
 
  let bigHtml="";
@@ -251,7 +261,7 @@ async function load(){
 
  document.getElementById("boxes").innerHTML=bigHtml;
 
- // ================= TABLE =================
+ // TABLE
  let table="";
 
  data.forEach(c=>{
@@ -272,10 +282,18 @@ async function load(){
  document.getElementById("table").innerHTML=table;
 }
 
-// ================= START =================
+// ================= MAIN LOOP =================
 async function start(){
+
  await rate();
- await load();
+
+ await Promise.all([
+  binanceEngine(),
+  kasEngine(),
+  taoEngine()
+ ]);
+
+ render();
  toccata();
 }
 
