@@ -4,7 +4,7 @@
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
 
-<title>Hybrid Crypto Dashboard</title>
+<title>Crypto Stable Dashboard</title>
 
 <style>
 body{
@@ -87,7 +87,7 @@ th,td{
 <body>
 
 <header>
-📊 Hybrid Crypto Dashboard (BTC / ETH / ALT MIX)
+📊 Stable Crypto Dashboard (No Data Loss)
 </header>
 
 <div id="toccataBox">
@@ -165,13 +165,13 @@ function toccata(){
  `D-${d} | ${h}h ${m}m ${s}s`;
 }
 
-// ================= SAFE STATE =================
-let last = {};
+// ================= SAFE STORAGE =================
+let last = [];
 
 // ================= MAIN =================
 async function load(){
 
- // Binance coins
+ // Binance
  const b = await Promise.all([
   binance("BTCUSDT"),
   binance("ETHUSDT"),
@@ -180,38 +180,51 @@ async function load(){
   binance("XRPUSDT")
  ]);
 
- // CoinGecko coins
+ // CoinGecko
  const kas = await cg("kaspa");
  const tao = await cg("bittensor");
 
  let data = [];
 
- // Binance push
+ // ===== Binance push =====
  if(b[0]) data.push({name:"BTC", price:+b[0].lastPrice, change:+b[0].priceChangePercent, cls:"btc"});
  if(b[1]) data.push({name:"ETH", price:+b[1].lastPrice, change:+b[1].priceChangePercent, cls:"eth"});
  if(b[2]) data.push({name:"SOL", price:+b[2].lastPrice, change:+b[2].priceChangePercent, cls:"sol"});
  if(b[3]) data.push({name:"SUI", price:+b[3].lastPrice, change:+b[3].priceChangePercent, cls:"sui"});
  if(b[4]) data.push({name:"XRP", price:+b[4].lastPrice, change:+b[4].priceChangePercent, cls:"xrp"});
 
- // CoinGecko push
- if(kas) data.push({
-  name:"KAS",
-  price:kas.current_price,
-  change:kas.price_change_percentage_24h,
-  cls:"kas"
- });
+ // ===== KAS SAFE FALLBACK =====
+ let kasSafe = last.find(x => x.name === "KAS");
 
- if(tao) data.push({
-  name:"TAO",
-  price:tao.current_price,
-  change:tao.price_change_percentage_24h,
-  cls:"tao"
- });
+ if(kas){
+  kasSafe = {
+   name:"KAS",
+   price:kas.current_price,
+   change:kas.price_change_percentage_24h,
+   cls:"kas"
+  };
+ }
 
- if(data.length>0) last=data;
+ if(kasSafe) data.push(kasSafe);
+
+ // ===== TAO SAFE =====
+ if(tao){
+  data.push({
+   name:"TAO",
+   price:tao.current_price,
+   change:tao.price_change_percentage_24h,
+   cls:"tao"
+  });
+ }
+
+ // ===== SAVE LAST SAFE STATE =====
+ if(data.length > 0){
+  last = data;
+ }
+
  data = last;
 
- // ================= BIG BOX (KAS + SUI only) =================
+ // ================= BIG BOX (KAS + SUI) =================
  const big = data.filter(c=>c.name==="KAS"||c.name==="SUI");
 
  let bigHtml="";
