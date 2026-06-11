@@ -3,8 +3,7 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
-
-<title>Crypto Engine Separated Dashboard</title>
+<title>Stable Crypto Dashboard</title>
 
 <style>
 body{
@@ -29,16 +28,8 @@ header{
  border-bottom:1px solid #222;
 }
 
-#toccataTitle{
- color:#ffd000;
- font-weight:bold;
-}
-
-#toccataCountdown{
- color:#00ff9d;
- font-size:18px;
- font-weight:bold;
-}
+#toccataTitle{color:#ffd000;font-weight:bold;}
+#toccataCountdown{color:#00ff9d;font-size:18px;font-weight:bold;}
 
 .box{
  margin:12px;
@@ -80,14 +71,13 @@ th,td{
  opacity:0.7;
  margin-bottom:5px;
 }
-
 </style>
 </head>
 
 <body>
 
 <header>
-📊 Engine Separated Crypto Dashboard (Stable Core)
+📊 Stable Crypto Dashboard (No 0 Price / No Data Loss)
 </header>
 
 <div id="toccataBox">
@@ -113,6 +103,18 @@ th,td{
 
 let KRW = 1300;
 
+// ================= SAFE VALUE HELPER =================
+function safeNum(v){
+ return (v === null || v === undefined || isNaN(v)) ? null : Number(v);
+}
+
+// ================= STATE (CRITICAL) =================
+let state = {
+ BTC:null, ETH:null, SOL:null, SUI:null, XRP:null,
+ KAS:null,
+ TAO:null
+};
+
 // ================= FX =================
 async function rate(){
  try{
@@ -123,85 +125,47 @@ async function rate(){
 }
 
 // ================= BINANCE ENGINE =================
-let binanceState = [];
-
-async function binanceEngine(){
- const symbols = [
-  ["BTCUSDT","BTC","btc"],
-  ["ETHUSDT","ETH","eth"],
-  ["SOLUSDT","SOL","sol"],
-  ["SUIUSDT","SUI","sui"],
-  ["XRPUSDT","XRP","xrp"]
- ];
-
- const results = await Promise.all(
-  symbols.map(async ([sym,name,cls])=>{
-   try{
-    const r = await fetch(`https://api.binance.com/api/v3/ticker/24hr?symbol=${sym}`);
-    const d = await r.json();
-    return {
-     name,
-     price:+d.lastPrice,
-     change:+d.priceChangePercent,
-     cls
-    };
-   }catch(e){
-    return null;
-   }
-  })
- );
-
- binanceState = results.filter(Boolean);
-}
-
-// ================= KAS ENGINE (INDEPENDENT) =================
-let kasState = {
- name:"KAS",
- price:0,
- change:0,
- cls:"kas"
-};
-
-async function kasEngine(){
+async function binance(symbol){
  try{
-  const r = await fetch(
-   "https://api.coingecko.com/api/v3/coins/markets?vs_currency=usd&ids=kaspa"
-  );
+  const r = await fetch(`https://api.binance.com/api/v3/ticker/24hr?symbol=${symbol}`);
   const d = await r.json();
 
-  if(d?.[0]){
-   kasState = {
-    name:"KAS",
-    price:d[0].current_price,
-    change:d[0].price_change_percentage_24h,
-    cls:"kas"
-   };
-  }
-
+  return {
+   price: safeNum(d?.lastPrice),
+   change: safeNum(d?.priceChangePercent)
+  };
  }catch(e){
-  // fallback 유지
+  return null;
  }
 }
 
-// ================= TAO ENGINE =================
-let taoState = null;
-
-async function taoEngine(){
+// ================= KAS ENGINE (INDEPENDENT) =================
+async function kasEngine(){
  try{
-  const r = await fetch(
-   "https://api.coingecko.com/api/v3/coins/markets?vs_currency=usd&ids=bittensor"
-  );
+  const r = await fetch("https://api.coingecko.com/api/v3/coins/markets?vs_currency=usd&ids=kaspa");
   const d = await r.json();
 
   if(d?.[0]){
-   taoState = {
-    name:"TAO",
-    price:d[0].current_price,
-    change:d[0].price_change_percentage_24h,
-    cls:"tao"
+   state.KAS = {
+    price: d[0].current_price,
+    change: d[0].price_change_percentage_24h
    };
   }
+ }catch(e){}
+}
 
+// ================= TAO ENGINE =================
+async function taoEngine(){
+ try{
+  const r = await fetch("https://api.coingecko.com/api/v6/coins/markets?vs_currency=usd&ids=bittensor");
+  const d = await r.json();
+
+  if(d?.[0]){
+   state.TAO = {
+    price: d[0].current_price,
+    change: d[0].price_change_percentage_24h
+   };
+  }
  }catch(e){}
 }
 
@@ -225,82 +189,108 @@ function toccata(){
  `D-${d} | ${h}h ${m}m ${s}s`;
 }
 
-// ================= RENDER ENGINE =================
+// ================= SAFE UPDATE =================
+async function update(){
+
+ await rate();
+
+ const [btc,eth,sol,sui,xrp] = await Promise.all([
+  binance("BTCUSDT"),
+  binance("ETHUSDT"),
+  binance("SOLUSDT"),
+  binance("SUIUSDT"),
+  binance("XRPUSDT")
+ ]);
+
+ if(btc) state.BTC = btc;
+ if(eth) state.ETH = eth;
+ if(sol) state.SOL = sol;
+ if(sui) state.SUI = sui;
+ if(xrp) state.XRP = xrp;
+
+ await Promise.all([
+  kasEngine(),
+  taoEngine()
+ ]);
+}
+
+// ================= RENDER (NO ZERO GUARANTEE) =================
 function render(){
 
- const data = [
-  ...binanceState,
-  kasState,
-  ...(taoState ? [taoState] : [])
+ const list = [
+  {name:"BTC", cls:"btc", data:state.BTC},
+  {name:"ETH", cls:"eth", data:state.ETH},
+  {name:"SOL", cls:"sol", data:state.SOL},
+  {name:"SUI", cls:"sui", data:state.SUI},
+  {name:"XRP", cls:"xrp", data:state.XRP},
+  {name:"KAS", cls:"kas", data:state.KAS},
+  {name:"TAO", cls:"tao", data:state.TAO}
  ];
 
- // BIG BOX (KAS + SUI)
- const big = data.filter(c=>c.name==="KAS"||c.name==="SUI");
+ let htmlBox="";
+ let htmlTable="";
 
- let bigHtml="";
+ list.forEach(c=>{
+
+  // 🚨 핵심: null이면 "이전값 유지", 0 출력 금지
+  if(!c.data || c.data.price === null) return;
+
+  const price = c.data.price;
+  const change = c.data.change ?? 0;
+
+  const color =
+   change > 0 ? "green" :
+   change < 0 ? "red" : "yellow";
+
+  htmlTable+=`
+  <tr>
+   <td>${c.name}</td>
+   <td>$${price}</td>
+   <td>₩${(price * KRW).toLocaleString()}</td>
+   <td class="${color}">${change.toFixed(2)}%</td>
+  </tr>`;
+ });
+
+ document.getElementById("table").innerHTML = htmlTable;
+
+ // BIG BOX (KAS + SUI)
+ const big = list.filter(x=>x.name==="KAS"||x.name==="SUI");
 
  big.forEach((c,i)=>{
 
-  const color =
-   c.change>0 ? "green" :
-   c.change<0 ? "red" : "yellow";
+  if(!c.data) return;
 
-  bigHtml+=`
+  const color =
+   c.data.change > 0 ? "green" :
+   c.data.change < 0 ? "red" : "yellow";
+
+  htmlBox+=`
   <div class="box ${c.cls}">
    <div class="rank">#${i+1}</div>
    ${c.name}
    <div class="price">
-    $${c.price}
+    $${c.data.price}
     <br>
     <span class="${color}">
-     ${c.change.toFixed(2)}%
+     ${c.data.change.toFixed(2)}%
     </span>
    </div>
   </div>`;
  });
 
- document.getElementById("boxes").innerHTML=bigHtml;
-
- // TABLE
- let table="";
-
- data.forEach(c=>{
-
-  const color =
-   c.change>0 ? "green" :
-   c.change<0 ? "red" : "yellow";
-
-  table+=`
-  <tr>
-   <td>${c.name}</td>
-   <td>$${c.price}</td>
-   <td>₩${(c.price * KRW).toLocaleString()}</td>
-   <td class="${color}">${c.change.toFixed(2)}%</td>
-  </tr>`;
- });
-
- document.getElementById("table").innerHTML=table;
+ document.getElementById("boxes").innerHTML = htmlBox;
 }
 
-// ================= MAIN LOOP =================
+// ================= LOOP =================
 async function start(){
-
- await rate();
-
- await Promise.all([
-  binanceEngine(),
-  kasEngine(),
-  taoEngine()
- ]);
-
+ await update();
  render();
  toccata();
 }
 
 start();
-
-setInterval(start,30000);
-setInterval(toccata,1000);
+setInterval(start, 30000);
+setInterval(toccata, 1000);
 
 </script>
 
