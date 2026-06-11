@@ -83,7 +83,7 @@ th,td{
 <body>
 
 <header>
-📊 Crypto Rank Dashboard (KAS / SUI Stable)
+📊 Crypto Rank Dashboard (KAS / SUI Focus)
 </header>
 
 <div id="toccataBox">
@@ -154,20 +154,31 @@ function toccata(){
 // ================= LOAD =================
 async function load(){
 
- const coins = [
+ // 🔥 BIG BOX (위쪽: KAS / SUI만)
+ const bigCoins = [
   {id:"kaspa", name:"KAS", cls:"kas"},
   {id:"sui", name:"SUI", cls:"sui"}
  ];
 
- let data = [];
+ // 📉 TABLE (아래: 전체)
+ const tableCoins = [
+  {id:"kaspa", name:"KAS"},
+  {id:"sui", name:"SUI"},
+  {id:"bitcoin", name:"BTC"},
+  {id:"ethereum", name:"ETH"},
+  {id:"solana", name:"SOL"}
+ ];
 
- for(const c of coins){
+ let bigData = [];
+ let tableData = [];
+
+ // ================= BIG =================
+ for(const c of bigCoins){
 
   const d = await getCoin(c.id);
-
   if(!d) continue;
 
-  data.push({
+  bigData.push({
    name:c.name,
    cls:c.cls,
    price:d.current_price,
@@ -175,21 +186,17 @@ async function load(){
   });
  }
 
- // ================= SORT 24h =================
- data.sort((a,b)=>b.change-a.change);
+ let bigHtml="";
 
- // ================= BIG BOX =================
- let html="";
-
- data.forEach((c,i)=>{
+ bigData.forEach((c,i)=>{
 
   const color =
    c.change>0 ? "green" :
    c.change<0 ? "red" : "yellow";
 
-  html+=`
+  bigHtml+=`
   <div class="box ${c.cls}">
-   <div class="rank">#${i+1} (24h Rank)</div>
+   <div class="rank">#${i+1}</div>
    ${c.name}
    <div class="price">
     $${c.price.toFixed(6)}
@@ -201,12 +208,24 @@ async function load(){
   </div>`;
  });
 
- document.getElementById("boxes").innerHTML=html;
+ document.getElementById("boxes").innerHTML=bigHtml;
 
  // ================= TABLE =================
+ for(const c of tableCoins){
+
+  const d = await getCoin(c.id);
+  if(!d) continue;
+
+  tableData.push({
+   name:c.name,
+   price:d.current_price,
+   change:d.price_change_percentage_24h || 0
+  });
+ }
+
  let table="";
 
- data.forEach(c=>{
+ tableData.forEach(c=>{
 
   const color =
    c.change>0 ? "green" :
