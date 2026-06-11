@@ -4,7 +4,7 @@
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
 
-<title>Crypto Rank Dashboard (Stable)</title>
+<title>Crypto Dashboard Stable</title>
 
 <style>
 body{
@@ -40,6 +40,19 @@ header{
  font-weight:bold;
 }
 
+.box{
+ margin:12px;
+ padding:14px;
+ border-radius:12px;
+ font-weight:bold;
+ text-align:center;
+}
+
+.price{font-size:28px;margin-top:6px;}
+
+.kas{background:#121a14;color:#00ff9d;}
+.sui{background:#10131c;color:#6aa8ff;}
+
 table{
  width:100%;
  border-collapse:collapse;
@@ -57,20 +70,6 @@ th,td{
 .red{color:#ff4d4d;font-weight:bold;}
 .yellow{color:#ffd000;font-weight:bold;}
 
-/* BIG BOX */
-.box{
- margin:12px;
- padding:14px;
- border-radius:12px;
- font-weight:bold;
- text-align:center;
-}
-
-.price{font-size:28px;margin-top:6px;}
-
-.kas{background:#121a14;color:#00ff9d;}
-.sui{background:#10131c;color:#6aa8ff;}
-
 .rank{
  font-size:12px;
  opacity:0.7;
@@ -83,7 +82,7 @@ th,td{
 <body>
 
 <header>
-📊 Crypto Rank Dashboard (KAS / SUI Focus)
+📊 Crypto Dashboard (Stable Version)
 </header>
 
 <div id="toccataBox">
@@ -109,25 +108,30 @@ th,td{
 
 let KRW = 1300;
 
-// ================= FX =================
+// ================= FX (fallback safe) =================
 async function rate(){
  try{
   const r = await fetch("https://open.er-api.com/v6/latest/USD");
   const d = await r.json();
-  KRW = d.rates.KRW || 1300;
- }catch(e){}
+  if(d?.rates?.KRW){
+    KRW = d.rates.KRW;
+  }
+ }catch(e){
+  console.log("KRW fallback used");
+ }
 }
 
-// ================= COINGECKO =================
-async function getCoin(id){
+// ================= SINGLE API CALL (핵심 안정화) =================
+async function getAll(){
  try{
   const r = await fetch(
-   `https://api.coingecko.com/api/v3/coins/markets?vs_currency=usd&ids=${id}`
+   "https://api.coingecko.com/api/v3/coins/markets?vs_currency=usd&ids=kaspa,sui,bitcoin,ethereum,solana"
   );
   const d = await r.json();
-  return d?.[0] || null;
+  return d || [];
  }catch(e){
-  return null;
+  console.log("Coin API error");
+  return [];
  }
 }
 
@@ -151,58 +155,42 @@ function toccata(){
  `D-${d} | ${h}h ${m}m ${s}s`;
 }
 
-// ================= LOAD =================
+// ================= SAFE STATE =================
+let lastData = [];
+
+// ================= MAIN =================
 async function load(){
 
- // 🔥 BIG BOX (위쪽: KAS / SUI만)
- const bigCoins = [
-  {id:"kaspa", name:"KAS", cls:"kas"},
-  {id:"sui", name:"SUI", cls:"sui"}
- ];
+ const data = await getAll();
 
- // 📉 TABLE (아래: 전체)
- const tableCoins = [
-  {id:"kaspa", name:"KAS"},
-  {id:"sui", name:"SUI"},
-  {id:"bitcoin", name:"BTC"},
-  {id:"ethereum", name:"ETH"},
-  {id:"solana", name:"SOL"}
- ];
-
- let bigData = [];
- let tableData = [];
-
- // ================= BIG =================
- for(const c of bigCoins){
-
-  const d = await getCoin(c.id);
-  if(!d) continue;
-
-  bigData.push({
-   name:c.name,
-   cls:c.cls,
-   price:d.current_price,
-   change:d.price_change_percentage_24h || 0
-  });
+ if(data.length > 0){
+  lastData = data; // 성공 데이터 저장
  }
+
+ const show = lastData;
+
+ // ================= BIG BOX (KAS / SUI only) =================
+ const bigCoins = ["kaspa","sui"];
 
  let bigHtml="";
 
- bigData.forEach((c,i)=>{
+ show.filter(c=>bigCoins.includes(c.id)).forEach((c,i)=>{
 
   const color =
-   c.change>0 ? "green" :
-   c.change<0 ? "red" : "yellow";
+   c.price_change_percentage_24h > 0 ? "green" :
+   c.price_change_percentage_24h < 0 ? "red" : "yellow";
+
+  const cls = c.id === "kaspa" ? "kas" : "sui";
 
   bigHtml+=`
-  <div class="box ${c.cls}">
+  <div class="box ${cls}">
    <div class="rank">#${i+1}</div>
-   ${c.name}
+   ${c.symbol.toUpperCase()}
    <div class="price">
-    $${c.price.toFixed(6)}
+    $${c.current_price}
     <br>
     <span class="${color}">
-     ${c.change.toFixed(2)}%
+     ${c.price_change_percentage_24h.toFixed(2)}%
     </span>
    </div>
   </div>`;
@@ -211,32 +199,20 @@ async function load(){
  document.getElementById("boxes").innerHTML=bigHtml;
 
  // ================= TABLE =================
- for(const c of tableCoins){
-
-  const d = await getCoin(c.id);
-  if(!d) continue;
-
-  tableData.push({
-   name:c.name,
-   price:d.current_price,
-   change:d.price_change_percentage_24h || 0
-  });
- }
-
  let table="";
 
- tableData.forEach(c=>{
+ show.forEach(c=>{
 
   const color =
-   c.change>0 ? "green" :
-   c.change<0 ? "red" : "yellow";
+   c.price_change_percentage_24h > 0 ? "green" :
+   c.price_change_percentage_24h < 0 ? "red" : "yellow";
 
   table+=`
   <tr>
-   <td>${c.name}</td>
-   <td>$${c.price.toFixed(6)}</td>
-   <td>₩${(c.price*KRW).toLocaleString()}</td>
-   <td class="${color}">${c.change.toFixed(2)}%</td>
+   <td>${c.symbol.toUpperCase()}</td>
+   <td>$${c.current_price}</td>
+   <td>₩${(c.current_price * KRW).toLocaleString()}</td>
+   <td class="${color}">${c.price_change_percentage_24h.toFixed(2)}%</td>
   </tr>`;
  });
 
@@ -246,7 +222,7 @@ async function load(){
 // ================= START =================
 async function start(){
  await rate();
- load();
+ await load();
  toccata();
 }
 
