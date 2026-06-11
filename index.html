@@ -4,7 +4,7 @@
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
 
-<title>Crypto Dashboard Stable</title>
+<title>Hybrid Crypto Dashboard</title>
 
 <style>
 body{
@@ -51,6 +51,9 @@ header{
 .price{font-size:28px;margin-top:6px;}
 
 .kas{background:#121a14;color:#00ff9d;}
+.btc{background:#1a1411;color:#ff9d00;}
+.eth{background:#12131a;color:#8c8cff;}
+.sol{background:#141a12;color:#7dffb2;}
 .sui{background:#10131c;color:#6aa8ff;}
 
 table{
@@ -82,7 +85,7 @@ th,td{
 <body>
 
 <header>
-📊 Crypto Dashboard (Stable Version)
+📊 Hybrid Crypto Dashboard (Binance + KAS)
 </header>
 
 <div id="toccataBox">
@@ -108,30 +111,35 @@ th,td{
 
 let KRW = 1300;
 
-// ================= FX (fallback safe) =================
+// ================= FX =================
 async function rate(){
  try{
   const r = await fetch("https://open.er-api.com/v6/latest/USD");
   const d = await r.json();
-  if(d?.rates?.KRW){
-    KRW = d.rates.KRW;
-  }
+  if(d?.rates?.KRW) KRW = d.rates.KRW;
+ }catch(e){}
+}
+
+// ================= BINANCE =================
+async function binance(symbol){
+ try{
+  const r = await fetch(`https://api.binance.com/api/v3/ticker/24hr?symbol=${symbol}`);
+  return await r.json();
  }catch(e){
-  console.log("KRW fallback used");
+  return null;
  }
 }
 
-// ================= SINGLE API CALL (핵심 안정화) =================
-async function getAll(){
+// ================= COINGECKO (KAS ONLY) =================
+async function kaspa(){
  try{
   const r = await fetch(
-   "https://api.coingecko.com/api/v3/coins/markets?vs_currency=usd&ids=kaspa,sui,bitcoin,ethereum,solana"
+   "https://api.coingecko.com/api/v3/coins/markets?vs_currency=usd&ids=kaspa"
   );
   const d = await r.json();
-  return d || [];
+  return d?.[0] || null;
  }catch(e){
-  console.log("Coin API error");
-  return [];
+  return null;
  }
 }
 
@@ -156,41 +164,60 @@ function toccata(){
 }
 
 // ================= SAFE STATE =================
-let lastData = [];
+let last = {};
 
 // ================= MAIN =================
 async function load(){
 
- const data = await getAll();
+ // ===== Binance coins =====
+ const b = await Promise.all([
+  binance("BTCUSDT"),
+  binance("ETHUSDT"),
+  binance("SOLUSDT"),
+  binance("SUIUSDT")
+ ]);
 
- if(data.length > 0){
-  lastData = data; // 성공 데이터 저장
- }
+ // ===== KAS =====
+ const k = await kaspa();
 
- const show = lastData;
+ // ===== build data =====
+ let data = [];
 
- // ================= BIG BOX (KAS / SUI only) =================
- const bigCoins = ["kaspa","sui"];
+ if(b[0]) data.push({name:"BTC", price:+b[0].lastPrice, change:+b[0].priceChangePercent, cls:"btc"});
+ if(b[1]) data.push({name:"ETH", price:+b[1].lastPrice, change:+b[1].priceChangePercent, cls:"eth"});
+ if(b[2]) data.push({name:"SOL", price:+b[2].lastPrice, change:+b[2].priceChangePercent, cls:"sol"});
+ if(b[3]) data.push({name:"SUI", price:+b[3].lastPrice, change:+b[3].priceChangePercent, cls:"sui"});
+
+ if(k) data.push({
+  name:"KAS",
+  price:k.current_price,
+  change:k.price_change_percentage_24h,
+  cls:"kas"
+ });
+
+ if(data.length>0) last=data;
+ data = last;
+
+ // ===== BIG BOX (KAS + SUI only) =====
+ const big = data.filter(c=>c.name==="KAS"||c.name==="SUI");
 
  let bigHtml="";
 
- show.filter(c=>bigCoins.includes(c.id)).forEach((c,i)=>{
+ big.forEach((c,i)=>{
 
   const color =
-   c.price_change_percentage_24h > 0 ? "green" :
-   c.price_change_percentage_24h < 0 ? "red" : "yellow";
-
-  const cls = c.id === "kaspa" ? "kas" : "sui";
+   c.change>0 ? "green" :
+   c.change<0 ? "red" : "yellow";
 
   bigHtml+=`
-  <div class="box ${cls}">
+  <div class="box ${c.cls}">
    <div class="rank">#${i+1}</div>
-   ${c.symbol.toUpperCase()}
+   ${c.name}
    <div class="price">
-    $${c.current_price}
+    $${c.price}
     <br>
     <span class="${color}">
-     ${c.price_change_percentage_24h.toFixed(2)}%
+     ${c.change.toFixed(2)}%
     </span>
    </div>
   </div>`;
@@ -198,21 +225,21 @@ async function load(){
 
  document.getElementById("boxes").innerHTML=bigHtml;
 
- // ================= TABLE =================
+ // ===== TABLE =====
  let table="";
 
- show.forEach(c=>{
+ data.forEach(c=>{
 
   const color =
-   c.price_change_percentage_24h > 0 ? "green" :
-   c.price_change_percentage_24h < 0 ? "red" : "yellow";
+   c.change>0 ? "green" :
+   c.change<0 ? "red" : "yellow";
 
   table+=`
   <tr>
-   <td>${c.symbol.toUpperCase()}</td>
-   <td>$${c.current_price}</td>
-   <td>₩${(c.current_price * KRW).toLocaleString()}</td>
-   <td class="${color}">${c.price_change_percentage_24h.toFixed(2)}%</td>
+   <td>${c.name}</td>
+   <td>$${c.price}</td>
+   <td>₩${(c.price*KRW).toLocaleString()}</td>
+   <td class="${color}">${c.change.toFixed(2)}%</td>
   </tr>`;
  });
 
